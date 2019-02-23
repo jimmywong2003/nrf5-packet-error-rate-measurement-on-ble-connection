@@ -62,6 +62,8 @@
 #include "ble_db_discovery.h"
 #include "ble_nus_c.h"
 #include "ble_lbs_c.h"
+#include "ble_image_transfer_service_c.h"
+
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_scan.h"
 
@@ -115,6 +117,8 @@
 NRF_BLE_SCAN_DEF(m_scan);                                       /**< Scanning module instance. */
 BLE_LBS_C_DEF(m_ble_lbs_c);                                     /**< Main structure used by the LBS client module. */
 BLE_NUS_C_DEF(m_ble_nus_c);                                             /**< BLE Nordic UART Service (NUS) client instance. */
+BLE_ITS_C_DEF(m_ble_its_c);                                             /**< BLE Nordic UART Service (NUS) client instance. */
+
 NRF_BLE_GATT_DEF(m_gatt);                                       /**< GATT module instance. */
 BLE_DB_DISCOVERY_DEF(m_db_disc);                                /**< DB discovery module instance. */
 
@@ -336,6 +340,55 @@ static void lbs_c_evt_handler(ble_lbs_c_t * p_lbs_c, ble_lbs_c_evt_t * p_lbs_c_e
         }
 }
 
+static uint32_t   receive_byte   = 0;
+
+static void ble_its_c_evt_handler(ble_its_c_t * p_ble_its_c, ble_its_c_evt_t const * p_ble_its_evt)
+{
+        ret_code_t err_code;
+
+        switch (p_ble_its_evt->evt_type)
+        {
+        case BLE_ITS_C_EVT_DISCOVERY_COMPLETE:
+                NRF_LOG_INFO("\n\n\nITS Service: Discovery complete.");
+                err_code = ble_its_c_handles_assign(p_ble_its_c, p_ble_its_evt->conn_handle, &p_ble_its_evt->handles);
+                APP_ERROR_CHECK(err_code);
+
+                NRF_LOG_INFO("ble_its_c_tx_notif_enable.");
+                err_code = ble_its_c_tx_notif_enable(p_ble_its_c);
+                APP_ERROR_CHECK(err_code);
+
+                NRF_LOG_INFO("ble_its_c_img_info_notif_enable.");
+                err_code = ble_its_c_img_info_notif_enable(p_ble_its_c);
+                APP_ERROR_CHECK(err_code);
+
+                NRF_LOG_INFO("Connected to device with Nordic ITS Service.\n\n");
+                break;
+
+        // case BLE_IMG_INFO_C_EVT_NUS_TX_EVT:
+        //         ble_nus_chars_received_uart_print(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
+        //         break;
+        case BLE_ITS_C_EVT_ITS_RX_EVT:
+                 NRF_LOG_INFO("BLE_ITS_C_EVT_ITS_RX_EVT");         
+                break;
+
+        case BLE_ITS_C_EVT_ITS_TX_EVT:
+                //count++;
+
+                receive_byte += p_ble_its_evt->data_len;
+                NRF_LOG_INFO("BLE_ITS_C_EVT_ITS_TX_EVT %04d", receive_byte);         
+                break;
+
+        case BLE_ITS_C_EVT_ITS_IMG_INFO_EVT:
+                NRF_LOG_INFO("BLE_ITS_C_EVT_ITS_IMG_INFO_EVT %04d", receive_byte);    
+                break;
+        case BLE_ITS_C_EVT_DISCONNECTED:
+                NRF_LOG_INFO("Disconnected.");
+                //scan_start();
+                break;
+        }
+}
+
+
 
 /**@brief Function for changing the tx power.
  */
@@ -364,30 +417,37 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         case BLE_GAP_EVT_CONNECTED:
         {
                 NRF_LOG_INFO("Connected.");
+
+                m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+
                 err_code = ble_lbs_c_handles_assign(&m_ble_lbs_c, p_gap_evt->conn_handle, NULL);
                 APP_ERROR_CHECK(err_code);
 
                 err_code = ble_nus_c_handles_assign(&m_ble_nus_c, p_gap_evt->conn_handle, NULL);
                 APP_ERROR_CHECK(err_code);
 
-                err_code = ble_db_discovery_start(&m_db_disc, p_gap_evt->conn_handle);
+                err_code = ble_its_c_handles_assign(&m_ble_its_c, p_gap_evt->conn_handle, NULL);
                 APP_ERROR_CHECK(err_code);
 
                 tx_power_set();
 
-                m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+                err_code = ble_db_discovery_start(&m_db_disc, p_gap_evt->conn_handle);
+                APP_ERROR_CHECK(err_code);
 
                 // Update LEDs status, and check if we should be looking for more
                 // peripherals to connect to.
                 bsp_board_led_on(CENTRAL_CONNECTED_LED);
                 bsp_board_led_off(CENTRAL_SCANNING_LED);
+
         } break;
 
         // Upon disconnection, reset the connection handle of the peer which disconnected, update
         // the LEDs status and start scanning again.
         case BLE_GAP_EVT_DISCONNECTED:
         {
-                NRF_LOG_INFO("Disconnected.");
+                NRF_LOG_INFO("Disconnected. conn_handle: 0x%x, reason: 0x%x",
+                             p_gap_evt->conn_handle,
+                             p_gap_evt->params.disconnected.reason);
 
                 m_conn_handle =BLE_CONN_HANDLE_INVALID;
 
@@ -500,6 +560,17 @@ static void lbs_c_init(void)
         lbs_c_init_obj.evt_handler = lbs_c_evt_handler;
 
         err_code = ble_lbs_c_init(&m_ble_lbs_c, &lbs_c_init_obj);
+        APP_ERROR_CHECK(err_code);
+}
+
+static void its_c_init(void)
+{
+        ret_code_t err_code;
+        ble_its_c_init_t init;
+
+        init.evt_handler = ble_its_c_evt_handler;
+
+        err_code = ble_its_c_init(&m_ble_its_c, &init);
         APP_ERROR_CHECK(err_code);
 }
 
@@ -675,6 +746,7 @@ static void db_disc_handler(ble_db_discovery_evt_t * p_evt)
 {
         ble_lbs_on_db_disc_evt(&m_ble_lbs_c, p_evt);
         ble_nus_c_on_db_disc_evt(&m_ble_nus_c, p_evt);
+        ble_its_c_on_db_disc_evt(&m_ble_its_c, p_evt);
 }
 
 
@@ -808,6 +880,7 @@ int main(void)
         db_discovery_init();
         lbs_c_init();
         nus_c_init();
+        its_c_init();
 
         // Start execution.
         NRF_LOG_INFO("Example how to check the RSSI / Channel Survey on BLE Central");

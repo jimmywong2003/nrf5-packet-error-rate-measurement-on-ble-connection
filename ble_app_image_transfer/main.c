@@ -60,11 +60,14 @@
 #include "boards.h"
 #include "app_timer.h"
 #include "app_button.h"
-#include "ble_lbs.h"
-#include "ble_nus.h"
+
 #include "nrf_ble_gatt.h"
 #include "nrf_ble_qwr.h"
 #include "nrf_pwr_mgmt.h"
+
+#include "ble_lbs.h"
+#include "ble_nus.h"
+#include "ble_image_transfer_service.h"
 
 #include "app_scheduler.h"
 #include "nrf_delay.h"
@@ -83,7 +86,9 @@
 #define ADVERTISING_LED                 BSP_BOARD_LED_0                         /**< Is on when device is advertising. */
 #define CONNECTED_LED                   BSP_BOARD_LED_1                         /**< Is on when device has connected. */
 #define LEDBUTTON_LED                   BSP_BOARD_LED_2                         /**< LED to be toggled with the help of the LED Button Service. */
+
 #define LEDBUTTON_BUTTON                BSP_BUTTON_0                            /**< Button that will trigger the notification event with the LED Button Service */
+#define TEST_BUTTON_BUTTON              BSP_BUTTON_1
 
 #define DEVICE_NAME                     "SurveyPeripheral"                         /**< Name of device. Will be included in the advertising data. */
 
@@ -124,7 +129,9 @@
 
 
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
+BLE_ITS_DEF(m_its, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE IMAGE TRANSFER service instance. */
 BLE_LBS_DEF(m_lbs);                                                             /**< LED Button Service instance. */
+
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
 
@@ -137,6 +144,12 @@ static uint8_t m_enc_scan_response_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];         
 
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;              /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 
+static ble_its_ble_params_info_t m_ble_params_info = {20, 50, 1, 1};
+static uint16_t m_ble_its_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;              /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
+
+static uint8_t m_new_command_received = 0;
+static uint8_t m_new_resolution, m_new_phy;
+static bool m_stream_mode_active = false;
 
 /**@brief Struct that contains pointers to the encoded advertising data. */
 static ble_gap_adv_data_t m_adv_data =
@@ -236,6 +249,13 @@ static void gap_params_init(void)
 }
 
 
+static void its_data_handler(ble_its_t * p_its, uint8_t const * p_data, uint16_t length)
+{
+
+}
+
+
+
 /**@brief Function for handling the data from the Nordic UART Service.
  *
  * @details This function will process the data received from the Nordic UART BLE Service and send
@@ -293,6 +313,9 @@ void gatt_evt_handler(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt)
         {
                 data_length = p_evt->params.att_mtu_effective - OPCODE_LENGTH - HANDLE_LENGTH - 4;
                 NRF_LOG_INFO("gatt_event: Data len is set to 0x%X (%d)", data_length, data_length);
+                m_ble_its_max_data_len = data_length;
+                m_ble_params_info.mtu = m_ble_its_max_data_len;
+                ble_its_ble_params_info_send(&m_its, &m_ble_params_info);
         }
         //NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
         //            p_gatt->att_mtu_desired_central,
@@ -489,6 +512,7 @@ static void services_init(void)
         ble_lbs_init_t init     = {0};
         nrf_ble_qwr_init_t qwr_init = {0};
         ble_nus_init_t nus_init;
+        ble_its_init_t its_init;
 
         // Initialize Queued Write Module.
         qwr_init.error_handler = nrf_qwr_error_handler;
@@ -509,6 +533,14 @@ static void services_init(void)
 
         err_code = ble_nus_init(&m_nus, &nus_init);
 
+        APP_ERROR_CHECK(err_code);
+
+        // Initialize ITS.
+        memset(&its_init, 0, sizeof(its_init));
+
+        its_init.data_handler = its_data_handler;
+
+        err_code = ble_its_init(&m_its, &its_init);
         APP_ERROR_CHECK(err_code);
 }
 
@@ -616,6 +648,17 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 advertising_start();
                 break;
 
+        case BLE_GAP_EVT_CONN_PARAM_UPDATE:
+        {
+                uint16_t max_con_int = p_ble_evt->evt.gap_evt.params.conn_param_update.conn_params.max_conn_interval;
+                uint16_t min_con_int = p_ble_evt->evt.gap_evt.params.conn_param_update.conn_params.min_conn_interval;
+
+                m_ble_params_info.con_interval = max_con_int;
+                ble_its_ble_params_info_send(&m_its, &m_ble_params_info);
+                NRF_LOG_INFO("Con params updated: CI %i, %i", (int)min_con_int, (int)max_con_int);
+
+        } break;
+
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
                 // Pairing not supported
                 err_code = sd_ble_gap_sec_params_reply(m_conn_handle,
@@ -657,6 +700,9 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 err_code = sd_ble_gap_disconnect(p_ble_evt->evt.gatts_evt.conn_handle,
                                                  BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
                 APP_ERROR_CHECK(err_code);
+                break;
+
+        case BLE_GATTS_EVT_HVN_TX_COMPLETE:
                 break;
 
         default:
@@ -704,6 +750,8 @@ static void ble_stack_init(void)
         NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 }
 
+#define TEST_BUFFER_LEN     (50*1024)
+static uint8_t buffer[TEST_BUFFER_LEN] = { 0 };
 
 /**@brief Function for handling events from the button handler module.
  *
@@ -727,6 +775,14 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
                         APP_ERROR_CHECK(err_code);
                 }
                 break;
+        case TEST_BUTTON_BUTTON:
+                if (button_action ==  APP_BUTTON_PUSH)
+                {
+                      //int32_t ble_its_send_file(ble_its_t * p_its, uint8_t * p_data, uint32_t data_length, uint32_t max_packet_length)
+                      ble_its_send_file(&m_its, buffer, sizeof(buffer), m_ble_its_max_data_len);
+                      NRF_LOG_INFO("Start send data %d %d", sizeof(buffer), m_ble_its_max_data_len);
+                }
+                break;
 
         default:
                 APP_ERROR_HANDLER(pin_no);
@@ -744,7 +800,8 @@ static void buttons_init(void)
         //The array must be static because a pointer to it will be saved in the button handler module.
         static app_button_cfg_t buttons[] =
         {
-                {LEDBUTTON_BUTTON, false, BUTTON_PULL, button_event_handler}
+                {LEDBUTTON_BUTTON, false, BUTTON_PULL, button_event_handler},
+                {TEST_BUTTON_BUTTON, false, BUTTON_PULL, button_event_handler},
         };
 
         err_code = app_button_init(buttons, ARRAY_SIZE(buttons),

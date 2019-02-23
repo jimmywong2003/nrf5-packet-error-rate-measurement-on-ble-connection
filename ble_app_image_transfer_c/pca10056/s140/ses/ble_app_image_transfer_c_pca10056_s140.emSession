@@ -61,8 +61,8 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="794" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="782" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="112" useTextEdit="1" useBinaryEdit="0" left="0" path="ble_app_image_transfer_c_pca10056_s140.emProject" selected="0" top="112" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="866" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="865" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="29" useTextEdit="1" useBinaryEdit="0" left="0" path="ble_app_image_transfer_c_pca10056_s140.emProject" selected="0" top="18" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_lbs_c/ble_lbs_c.c" selected="0" top="60" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_nus_c/ble_nus_c.c" selected="0" top="39" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="7646" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="7646" codecName="Default"/>
@@ -70,6 +70,8 @@
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="305" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/channel_survey.c" selected="0" top="305" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="42" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/uart/app_uart_fifo.c" selected="0" top="13" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="99" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/app_error_weak.c" selected="0" top="86" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="38" y="109" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.h" selected="0" top="94" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="24" y="263" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.c" selected="0" top="237" codecName="Default"/>
  </Files>
  <ARMCrossStudioWindow activeProject="ble_app_image_transfer_c_pca10056_s140" fileDialogDefaultFilter="*.c" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="" fileDialogInitialDirectory="C:/Nordic_Semiconductor_ASA/SDK_15.2/github_jimmy/BLE_Central_ChannelMapUpdate_Survey/module" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

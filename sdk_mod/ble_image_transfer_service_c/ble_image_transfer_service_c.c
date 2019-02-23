@@ -250,6 +250,23 @@ static void on_hvx(ble_its_c_t * p_ble_its_c, ble_evt_t const * p_ble_evt)
                         //NRF_LOG_DEBUG("Client sending data.");
                 }
         }
+                // Check if this is a Button notification.
+        if ((p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_its_c->handles.its_img_info_handle) \
+            && (p_ble_its_c->evt_handler != NULL))
+        {
+                //if (p_ble_evt->evt.gattc_evt.params.hvx.len == 1)
+                {
+                        ble_its_c_evt_t ble_its_c_evt;
+
+                        ble_its_c_evt.evt_type                   = BLE_ITS_C_EVT_ITS_IMG_INFO_EVT;
+                        ble_its_c_evt.conn_handle                = p_ble_its_c->conn_handle;
+                        ble_its_c_evt.p_data                     = (uint8_t *)p_ble_evt->evt.gattc_evt.params.hvx.data;
+                        ble_its_c_evt.data_len                   = p_ble_evt->evt.gattc_evt.params.hvx.len;
+                        //ble_its_c_evt.params.button.button_state = ble_its_c_evt->evt.gattc_evt.params.hvx.data[0];
+                        p_ble_its_c->evt_handler(p_ble_its_c, &ble_its_c_evt);
+                        //NRF_LOG_DEBUG("Client sending data.");
+                }
+        }
 }
 
 uint32_t ble_its_c_init(ble_its_c_t * p_ble_its_c, ble_its_c_init_t * p_ble_its_c_init)

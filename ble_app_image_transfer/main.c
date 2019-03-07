@@ -83,12 +83,18 @@
 #include "nrf_uarte.h"
 #endif
 
+#include "app_display.h"
+
 #define ADVERTISING_LED                 BSP_BOARD_LED_0                         /**< Is on when device is advertising. */
 #define CONNECTED_LED                   BSP_BOARD_LED_1                         /**< Is on when device has connected. */
 #define LEDBUTTON_LED                   BSP_BOARD_LED_2                         /**< LED to be toggled with the help of the LED Button Service. */
 
-#define LEDBUTTON_BUTTON                BSP_BUTTON_0                            /**< Button that will trigger the notification event with the LED Button Service */
-#define TEST_BUTTON_BUTTON              BSP_BUTTON_1
+#define APP_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2    /**< Reply when unsupported features are requested. */
+
+#define PHY_BUTTON                      BSP_BUTTON_0
+#define TX_POWER_BUTTON                 BSP_BUTTON_1
+#define APP_STATE_BUTTON                BSP_BUTTON_2
+#define LEDBUTTON_BUTTON                BSP_BUTTON_3                            /**< Button that will trigger the notification event with the LED Button Service */
 
 #define DEVICE_NAME                     "SurveyPeripheral"                         /**< Name of device. Will be included in the advertising data. */
 
@@ -97,9 +103,9 @@
 #define APP_BLE_OBSERVER_PRIO           3                                       /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 #define APP_BLE_CONN_CFG_TAG            1                                       /**< A tag identifying the SoftDevice BLE configuration. */
 
-#define APP_ADV_INTERVAL                64                                      /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
+#define APP_ADV_INTERVAL                300                                     /**< The advertising interval (in units of 0.625 ms; this value corresponds to 40 ms). */
 #define APP_ADV_DURATION                BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED   /**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
-
+#define RESTART_ADVERTISING_TIMEOUT_MS  2000
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(7.5, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.5 seconds). */
 #define MAX_CONN_INTERVAL               MSEC_TO_UNITS(7.5, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (1 second). */
@@ -147,9 +153,15 @@ static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;          
 static ble_its_ble_params_info_t m_ble_params_info = {20, 50, 1, 1};
 static uint16_t m_ble_its_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;              /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 
+app_display_content_t m_application_state = {0};
+
+
 static uint8_t m_new_command_received = 0;
 static uint8_t m_new_resolution, m_new_phy;
 static bool m_stream_mode_active = false;
+
+#define TEST_BUFFER_LEN     (50*1024)
+static uint8_t buffer[TEST_BUFFER_LEN] = { 0 };
 
 /**@brief Struct that contains pointers to the encoded advertising data. */
 static ble_gap_adv_data_t m_adv_data =
@@ -166,6 +178,12 @@ static ble_gap_adv_data_t m_adv_data =
 
         }
 };
+
+APP_TIMER_DEF(m_restart_advertising_timer_id);
+
+
+static void display_update(void);
+static void advertising_start(void);
 
 /**@brief Function for assert macro callback.
  *
@@ -193,6 +211,10 @@ static void leds_init(void)
         bsp_board_init(BSP_INIT_LEDS);
 }
 
+static void restart_advertising_callback(void *p)
+{
+        advertising_start();
+}
 
 /**@brief Function for the Timer initialization.
  *
@@ -203,6 +225,9 @@ static void timers_init(void)
         // Initialize timer module, making it use the scheduler
         ret_code_t err_code = app_timer_init();
         APP_ERROR_CHECK(err_code);
+
+        err_code = app_timer_create(&m_restart_advertising_timer_id, APP_TIMER_MODE_SINGLE_SHOT, restart_advertising_callback);
+        APP_ERROR_CHECK(err_code);
 }
 
 /**@brief Function for changing the tx power.
@@ -212,6 +237,8 @@ static void tx_power_set(void)
         ret_code_t err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_CONN, m_conn_handle, TX_POWER_LEVEL);
         APP_ERROR_CHECK(err_code);
 }
+
+
 
 /**@brief Function for the GAP initialization.
  *
@@ -356,13 +383,12 @@ static void advertising_init(void)
         memset(&advdata, 0, sizeof(advdata));
 
         advdata.name_type          = BLE_ADVDATA_FULL_NAME;
-        advdata.include_appearance = true;
+        advdata.include_appearance = false;
         advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 
-
         memset(&srdata, 0, sizeof(srdata));
-        srdata.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
-        srdata.uuids_complete.p_uuids  = adv_uuids;
+        // srdata.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
+        // srdata.uuids_complete.p_uuids  = adv_uuids;
 
         err_code = ble_advdata_encode(&advdata, m_adv_data.adv_data.p_data, &m_adv_data.adv_data.len);
         APP_ERROR_CHECK(err_code);
@@ -375,14 +401,28 @@ static void advertising_init(void)
         // Set advertising parameters.
         memset(&adv_params, 0, sizeof(adv_params));
 
-        adv_params.primary_phy     = BLE_GAP_PHY_1MBPS;
+        if(m_application_state.phy == APP_PHY_CODED || m_application_state.phy == APP_PHY_MULTI)
+        {
+                adv_params.primary_phy     = BLE_GAP_PHY_CODED;
+                adv_params.secondary_phy   = BLE_GAP_PHY_CODED;
+                adv_params.properties.type = BLE_GAP_ADV_TYPE_EXTENDED_CONNECTABLE_NONSCANNABLE_UNDIRECTED;
+        }
+        else
+        {
+                adv_params.primary_phy     = BLE_GAP_PHY_1MBPS;
+                adv_params.secondary_phy   = BLE_GAP_PHY_1MBPS;
+                adv_params.properties.type = BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED;
+        }
+
         adv_params.duration        = APP_ADV_DURATION;
-        adv_params.properties.type = BLE_GAP_ADV_TYPE_CONNECTABLE_SCANNABLE_UNDIRECTED;
         adv_params.p_peer_addr     = NULL;
         adv_params.filter_policy   = BLE_GAP_ADV_FP_ANY;
         adv_params.interval        = APP_ADV_INTERVAL;
 
         err_code = sd_ble_gap_adv_set_configure(&m_adv_handle, &m_adv_data, &adv_params);
+        APP_ERROR_CHECK(err_code);
+
+        err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_adv_handle, m_application_state.tx_power * 4);
         APP_ERROR_CHECK(err_code);
 }
 
@@ -608,11 +648,59 @@ static void advertising_start(void)
         ret_code_t err_code;
 
         err_code = sd_ble_gap_adv_start(m_adv_handle, APP_BLE_CONN_CFG_TAG);
-        APP_ERROR_CHECK(err_code);
+        if(err_code == NRF_SUCCESS)
+        {
+                bsp_board_led_on(ADVERTISING_LED);
 
-        bsp_board_led_on(ADVERTISING_LED);
+                m_application_state.app_state = APP_STATE_ADVERTISING;
+                display_update();
+        }
+        else
+        {
+                APP_ERROR_CHECK(err_code);
+        }
 }
 
+
+static void ble_go_to_idle(void)
+{
+        ret_code_t err_code;
+        switch(m_application_state.app_state)
+        {
+        case APP_STATE_ADVERTISING:
+                err_code = sd_ble_gap_adv_stop(m_adv_handle);
+                APP_ERROR_CHECK(err_code);
+                break;
+
+        case APP_STATE_CONNECTED:
+                //for(int i = 0; i < (m_application_state.phy == APP_PHY_MULTI ? 3 : 1); i++)
+        {
+                if(m_conn_handle != BLE_CONN_HANDLE_INVALID)
+                {
+                        err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+                        APP_ERROR_CHECK(err_code);
+                }
+        }
+        break;
+
+        case APP_STATE_DISCONNECTED:
+                err_code = app_timer_stop(m_restart_advertising_timer_id);
+                APP_ERROR_CHECK(err_code);
+                break;
+        }
+        m_application_state.app_state = APP_STATE_IDLE;
+        display_update();
+}
+
+
+static void request_phy(uint16_t c_handle, uint8_t phy)
+{
+        ble_gap_phys_t phy_req;
+        phy_req.tx_phys = phy;
+        phy_req.rx_phys = phy;
+        sd_ble_gap_phy_update(c_handle, &phy_req);
+        NRF_LOG_INFO("Request to do the PHY update");
+}
 
 /**@brief Function for handling BLE events.
  *
@@ -702,6 +790,46 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 APP_ERROR_CHECK(err_code);
                 break;
 
+        case BLE_EVT_USER_MEM_REQUEST:
+                err_code = sd_ble_user_mem_reply(p_ble_evt->evt.gattc_evt.conn_handle, NULL);
+                APP_ERROR_CHECK(err_code);
+                break;
+
+        case BLE_GATTS_EVT_RW_AUTHORIZE_REQUEST:
+        {
+                ble_gatts_evt_rw_authorize_request_t req;
+                ble_gatts_rw_authorize_reply_params_t auth_reply;
+
+                req = p_ble_evt->evt.gatts_evt.params.authorize_request;
+
+                if (req.type != BLE_GATTS_AUTHORIZE_TYPE_INVALID)
+                {
+                        if ((req.request.write.op == BLE_GATTS_OP_PREP_WRITE_REQ)     ||
+                            (req.request.write.op == BLE_GATTS_OP_EXEC_WRITE_REQ_NOW) ||
+                            (req.request.write.op == BLE_GATTS_OP_EXEC_WRITE_REQ_CANCEL))
+                        {
+                                if (req.type == BLE_GATTS_AUTHORIZE_TYPE_WRITE)
+                                {
+                                        auth_reply.type = BLE_GATTS_AUTHORIZE_TYPE_WRITE;
+                                }
+                                else
+                                {
+                                        auth_reply.type = BLE_GATTS_AUTHORIZE_TYPE_READ;
+                                }
+                                auth_reply.params.write.gatt_status = APP_FEATURE_NOT_SUPPORTED;
+                                err_code = sd_ble_gatts_rw_authorize_reply(p_ble_evt->evt.gatts_evt.conn_handle,
+                                                                           &auth_reply);
+                                APP_ERROR_CHECK(err_code);
+                        }
+                }
+        } break;         // BLE_GATTS_EVT_RW_AUTHORIZE_REQUEST
+
+        case BLE_GAP_EVT_RSSI_CHANGED:
+                m_application_state.rssi[p_ble_evt->evt.gap_evt.conn_handle] = p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
+                //display_update();
+                break;
+
+
         case BLE_GATTS_EVT_HVN_TX_COMPLETE:
                 break;
 
@@ -709,6 +837,23 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 // No implementation needed.
                 break;
         }
+}
+
+
+static void display_update()
+{
+        static bool first_update = true;
+        if(first_update)
+        {
+                m_application_state.main_title = "Throughput (PER)";
+                app_display_create_main_screen(&m_application_state);
+                first_update = false;
+        }
+        else
+        {
+                app_display_update_main_screen(&m_application_state);
+        }
+        app_display_update();
 }
 
 /**@brief Function for the Event Scheduler initialization.
@@ -750,8 +895,7 @@ static void ble_stack_init(void)
         NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 }
 
-#define TEST_BUFFER_LEN     (50*1024)
-static uint8_t buffer[TEST_BUFFER_LEN] = { 0 };
+
 
 /**@brief Function for handling events from the button handler module.
  *
@@ -764,24 +908,48 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 
         switch (pin_no)
         {
-        case LEDBUTTON_BUTTON:
-                NRF_LOG_INFO("Send button state change.");
-                err_code = ble_lbs_on_button_change(m_conn_handle, &m_lbs, button_action);
-                if (err_code != NRF_SUCCESS &&
-                    err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
-                    err_code != NRF_ERROR_INVALID_STATE &&
-                    err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING)
+        case PHY_BUTTON:
+                if(button_action == APP_BUTTON_PUSH && m_application_state.app_state == APP_STATE_IDLE)
                 {
-                        APP_ERROR_CHECK(err_code);
+                        m_application_state.phy = (m_application_state.phy + 1) % APP_PHY_LIST_END;
+                        advertising_init();
+                        display_update();
                 }
                 break;
-        case TEST_BUTTON_BUTTON:
-                if (button_action ==  APP_BUTTON_PUSH)
+
+        case TX_POWER_BUTTON:
+                if(button_action == APP_BUTTON_PUSH)
                 {
-                      //int32_t ble_its_send_file(ble_its_t * p_its, uint8_t * p_data, uint32_t data_length, uint32_t max_packet_length)
-                      ble_its_send_file(&m_its, buffer, sizeof(buffer), m_ble_its_max_data_len);
-                      NRF_LOG_INFO("Start send data %d %d", sizeof(buffer), m_ble_its_max_data_len);
+                        m_application_state.tx_power = (m_application_state.tx_power + 1) % 3;
+                        int8_t tx_power = (int8_t)(m_application_state.tx_power * 4);
+                        if(m_application_state.app_state == APP_STATE_CONNECTED)
+                        {
+                                err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_CONN, m_conn_handle, tx_power);
+                                APP_ERROR_CHECK(err_code);
+                        }
+                        else
+                        {
+                                err_code = sd_ble_gap_tx_power_set(BLE_GAP_TX_POWER_ROLE_ADV, m_adv_handle, tx_power);
+                                APP_ERROR_CHECK(err_code);
+                        }
+                        display_update();
                 }
+                break;
+
+        case APP_STATE_BUTTON:
+                if(button_action == APP_BUTTON_PUSH)
+                {
+                        if(m_application_state.app_state == APP_STATE_IDLE)
+                        {
+                                advertising_start();
+                        }
+                        else
+                        {
+                                ble_go_to_idle();
+                        }
+                }
+                break;
+        case LEDBUTTON_BUTTON:
                 break;
 
         default:
@@ -800,8 +968,10 @@ static void buttons_init(void)
         //The array must be static because a pointer to it will be saved in the button handler module.
         static app_button_cfg_t buttons[] =
         {
-                {LEDBUTTON_BUTTON, false, BUTTON_PULL, button_event_handler},
-                {TEST_BUTTON_BUTTON, false, BUTTON_PULL, button_event_handler},
+                {PHY_BUTTON,       false, BUTTON_PULL, button_event_handler},
+                {TX_POWER_BUTTON,  false, BUTTON_PULL, button_event_handler},
+                {APP_STATE_BUTTON, false, BUTTON_PULL, button_event_handler},
+                {LEDBUTTON_BUTTON, false, BUTTON_PULL, button_event_handler}
         };
 
         err_code = app_button_init(buttons, ARRAY_SIZE(buttons),
@@ -872,7 +1042,17 @@ int main(void)
 
         // Start execution.
         NRF_LOG_INFO("Channel Map Update Example : Peripheral LBS + NUS.");
-        advertising_start();
+
+        app_display_init(&m_application_state);
+        display_update();
+
+        err_code = app_button_enable();
+        APP_ERROR_CHECK(err_code);
+
+//        err_code = app_timer_start(m_connection_one_sec_timer_id, CONNECTION_ONE_SECOND_INTERVAL, NULL);
+//        APP_ERROR_CHECK(err_code);
+
+        // advertising_start();
 
         // Enter main loop.
         for (;;)

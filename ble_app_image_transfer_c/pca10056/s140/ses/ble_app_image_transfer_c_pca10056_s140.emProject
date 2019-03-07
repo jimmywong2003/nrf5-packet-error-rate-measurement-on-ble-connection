@@ -1,5 +1,8 @@
 <!DOCTYPE CrossStudio_Project_File>
-<solution Name="ble_app_image_transfer_c_pca10056_s140" target="8" version="2">
+<solution
+  Name="ble_app_image_transfer_c_pca10056_s140"
+  target="8"
+  version="2">
   <project Name="ble_app_image_transfer_c_pca10056_s140">
     <configuration
       Name="Common"
@@ -80,7 +83,9 @@
       <file file_name="../../../../../../integration/nrfx/legacy/nrf_drv_uart.c" />
       <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_clock.c" />
       <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_gpiote.c" />
-      <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_power_clock.c" />
+      <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_power_clock.c">
+        <configuration Name="Debug" build_exclude_from_build="Yes" />
+      </file>
       <file file_name="../../../../../../modules/nrfx/drivers/src/prs/nrfx_prs.c" />
       <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_uart.c" />
       <file file_name="../../../../../../modules/nrfx/drivers/src/nrfx_uarte.c" />
@@ -125,10 +130,12 @@
     </folder>
     <configuration
       Name="Release"
+      debug_additional_load_file="../../../../../../components/softdevice/s140/hex/s140_nrf52_6.1.0_softdevice.hex"
       gcc_debugging_level="None"
       gcc_optimization_level="Optimize For Size" />
     <configuration
       Name="Debug"
+      debug_additional_load_file=""
       gcc_debugging_level="Level 3"
       gcc_optimization_level="None" />
   </project>

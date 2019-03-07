@@ -24,7 +24,11 @@
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Application"/>
+  <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Board Definition"/>
+  <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Display"/>
+  <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Display"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Modified_BLE_Services"/>
+  <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;nRF_Drivers"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;nRF_Libraries"/>
  </Project>
  <Register1>
@@ -59,17 +63,23 @@
  </Watch4>
  <Files>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="71" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/ble/ble_services/ble_nus/ble_nus.h" selected="0" top="56" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="847" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="835" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="44" y="12419" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="12397" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1013" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="719" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="55" y="7568" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="0" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="42" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/uart/app_uart_fifo.c" selected="0" top="22" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="36" y="373" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service/ble_image_transfer_service.c" selected="0" top="366" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="373" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service/ble_image_transfer_service.c" selected="0" top="373" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="74" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service/ble_image_transfer_service.h" selected="0" top="60" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="99" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/app_error_weak.c" selected="0" top="87" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="199" y="32" useTextEdit="1" useBinaryEdit="0" left="55" path="ble_app_image_transfer_pca10056_s140.emProject" selected="0" top="14" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_lbs/ble_lbs.c" selected="0" top="29" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="40" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_lbs/ble_lbs.c" selected="0" top="40" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="45" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_nus/ble_nus.c" selected="0" top="27" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/button/app_button.c" selected="0" top="199" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="75" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/button/app_button.h" selected="0" top="66" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="95" useTextEdit="1" useBinaryEdit="0" left="0" path="ble_app_image_transfer_pca10056_s140.emProject" selected="0" top="95" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="206" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/app_display.c" selected="0" top="193" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1057" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../common/adafruit_touch_display/ugui/ugui.h" selected="0" top="1029" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="47" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../common/adafruit_touch_display/gfx_extended/nrf_gfx_ext.h" selected="0" top="19" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../common/adafruit_touch_display/gfx_extended/ili9341_ext.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="1" y="4655" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../common/adafruit_touch_display/ugui/ugui.c" selected="0" top="4626" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="53" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/boards/boards.h" selected="0" top="60" codecName="Default"/>
  </Files>
- <ARMCrossStudioWindow activeProject="ble_app_image_transfer_pca10056_s140" fileDialogDefaultFilter="" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="" fileDialogInitialDirectory="C:/Nordic_Semiconductor_ASA/SDK_15.2/github_jimmy/BLE_Throughput_Test_with_PER/sdk_mod/ble_image_transfer_service" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <ARMCrossStudioWindow activeProject="ble_app_image_transfer_pca10056_s140" fileDialogDefaultFilter="*.asm;*.s;*.inc" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf52840.s&#xa;&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf_common.s&#xa;" fileDialogInitialDirectory="" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

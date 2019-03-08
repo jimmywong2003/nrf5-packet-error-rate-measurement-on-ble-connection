@@ -17,8 +17,14 @@ In this example, it counts the difference between number of TX packets send and 
 
 ![Image of PER](https://github.com/jimmywong2003/BLE_Throughput_Test_with_PER/blob/master/picture/how_to_get_packet_eror_rate.png)
 
+## How to do the demo
+
+Press the button 4 at the peripheral device to toggle on/off the throughput test with PER.
+
+![Image LCD](https://github.com/jimmywong2003/PER-measure-in-BLE/blob/master/picture/NRF52840_DK_LCD.jpg)
+
 ## Requirements
-* nRF52832 DK / nRF52840 DK
+* 2 x nRF52840 DK
 * Adafruit ILI9341 2.8 320x240
 * Segger Embedded Studio
 * nRF5_SDK_v15.3.0

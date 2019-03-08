@@ -126,7 +126,7 @@
       <file file_name="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.c" />
     </folder>
     <folder Name="Module">
-      <file file_name="../../../../module/channel_survey.c" />
+      <file file_name="../../../../module/packet_error_rate.c" />
     </folder>
     <configuration
       Name="Release"

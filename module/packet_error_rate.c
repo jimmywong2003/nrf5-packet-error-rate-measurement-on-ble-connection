@@ -81,7 +81,7 @@ void packet_error_rate_detect_enable(void)
                 (GPIO_PER_PIN_FOR_RX_CRCOK << GPIOTE_CONFIG_PSEL_Pos)             |
                 (GPIOTE_CONFIG_MODE_Task << GPIOTE_CONFIG_MODE_Pos);
 
-
+#if defined (NRF52840_XXAA)
         /* Connect NRF_RADIO->EVENTS_ADDRESS event via a PPI channel to the GPIOTE task corresponding to
          * GPIO_PIN_FOR_RX_READY. This will make the pin toggle on EVENTS_ADDRESS event.*/
         NRF_PPI->CH[PPI_CHANNEL_FOR_TX_READY_GPIO_EVT].TEP = (uint32_t)(&NRF_GPIOTE->TASKS_OUT[GPIOTE_CHANNEL_TX_READY]);
@@ -98,6 +98,23 @@ void packet_error_rate_detect_enable(void)
         NRF_PPI->CH[PPI_CHANNEL_FOR_RX_CRCOK_TIMER_EVT].TEP = (uint32_t)(&NRF_TIMER_RX_CRCOK->TASKS_COUNT);
         NRF_PPI->CH[PPI_CHANNEL_FOR_RX_CRCOK_TIMER_EVT].EEP = (uint32_t)(&NRF_RADIO->EVENTS_CRCOK);//PAYLOAD);//CRCERROR);
 
+#else
+        /* Connect NRF_RADIO->EVENTS_ADDRESS event via a PPI channel to the GPIOTE task corresponding to
+         * GPIO_PIN_FOR_RX_READY. This will make the pin toggle on EVENTS_ADDRESS event.*/
+        NRF_PPI->CH[PPI_CHANNEL_FOR_TX_READY_GPIO_EVT].TEP = (uint32_t)(&NRF_GPIOTE->TASKS_OUT[GPIOTE_CHANNEL_TX_READY]);
+        NRF_PPI->CH[PPI_CHANNEL_FOR_TX_READY_GPIO_EVT].EEP = (uint32_t)(&NRF_RADIO->EVENTS_READY);//EVENTS_TXREADY);//EVENTS_PAYLOAD);//EVENTS_ADDRESS);
+
+        /* Connect NRF_RADIO->EVENTS_CRCERROR event via a PPI channel to the GPIOTE task corresponding to
+         * GPIO_PIN_FOR_RX_CRCOK. This will make the pin toggle on EVENTS_CRCERROR event.*/
+        NRF_PPI->CH[PPI_CHANNEL_FOR_RX_CRCOK_GPIO_EVT].TEP = (uint32_t)(&NRF_GPIOTE->TASKS_OUT[GPIOTE_CHANNEL_RX_CRCOK]);
+        NRF_PPI->CH[PPI_CHANNEL_FOR_RX_CRCOK_GPIO_EVT].EEP = (uint32_t)(&NRF_RADIO->EVENTS_CRCOK);
+
+        NRF_PPI->CH[PPI_CHANNEL_FOR_TX_READY_TIMER_EVT].TEP = (uint32_t)(&NRF_TIMER_TX_READY->TASKS_COUNT);//GPIOTE->TASKS_OUT[GPIOTE_CHANNEL_RX_READY]);
+        NRF_PPI->CH[PPI_CHANNEL_FOR_TX_READY_TIMER_EVT].EEP = (uint32_t)(&NRF_RADIO->EVENTS_READY);//CRCOK);//EVENTS_PAYLOAD);//EVENTS_ADDRESS);
+
+        NRF_PPI->CH[PPI_CHANNEL_FOR_RX_CRCOK_TIMER_EVT].TEP = (uint32_t)(&NRF_TIMER_RX_CRCOK->TASKS_COUNT);
+        NRF_PPI->CH[PPI_CHANNEL_FOR_RX_CRCOK_TIMER_EVT].EEP = (uint32_t)(&NRF_RADIO->EVENTS_CRCOK);//PAYLOAD);//CRCERROR);
+#endif 
         /* Enable the PPI channels configured above. */
         NRF_PPI->CHENSET =  (1 << PPI_CHANNEL_FOR_TX_READY_GPIO_EVT)  |
                            (1 << PPI_CHANNEL_FOR_RX_CRCOK_GPIO_EVT) |
@@ -133,16 +150,26 @@ uint32_t packet_error_rate_timeout_handler(void)
         NRF_TIMER_TX_READY->TASKS_CAPTURE[0] = 1;
         NRF_TIMER_RX_CRCOK->TASKS_CAPTURE[0] = 1;
 
+#if defined (NRF52840_XXAA)
         radio_packet_ready = NRF_TIMER_TX_READY->CC[0] - u32_radio_packet_ready_per_interval;
+#else
+        radio_packet_ready = NRF_TIMER_TX_READY->CC[0]/2 - u32_radio_packet_ready_per_interval;
+#endif
         radio_packet_crcok = NRF_TIMER_RX_CRCOK->CC[0] - u32_radio_packet_crcok_per_interval;
 
         radio_packet_success_rate = (radio_packet_crcok * 100)/(radio_packet_ready);
 
+#if defined (NRF52840_XXAA)
         u32_radio_packet_ready_per_interval = NRF_TIMER_TX_READY->CC[0];
+#else
+        u32_radio_packet_ready_per_interval = NRF_TIMER_TX_READY->CC[0]/2;
+#endif
         u32_radio_packet_crcok_per_interval = NRF_TIMER_RX_CRCOK->CC[0];
 
         //printf("%02d\n", radio_packet_success_rate);
-        NRF_LOG_DEBUG("Packet Success Rate %02d %%\n", radio_packet_success_rate);
+        NRF_LOG_INFO("PER Timeout %d, %d", radio_packet_ready, radio_packet_crcok);
+
+        NRF_LOG_INFO("Packet Success Rate %02d %%\n", radio_packet_success_rate);
 
         // NRF_TIMER_TX_READY->TASKS_CLEAR = 1;
         // NRF_TIMER_RX_CRCOK->TASKS_CLEAR = 1;

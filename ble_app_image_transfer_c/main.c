@@ -69,7 +69,7 @@
 
 #include "app_scheduler.h"
 
-#include "channel_survey.h"
+#include "packet_error_rate.h"
 
 #include "nrf_log.h"
 #include "nrf_log_ctrl.h"
@@ -91,16 +91,18 @@
 #define SCAN_DURATION                   0x0000                              /**< Timout when scanning. 0x0000 disables timeout. */
 
 #define MIN_CONNECTION_INTERVAL         MSEC_TO_UNITS(7.5, UNIT_1_25_MS)    /**< Determines minimum connection interval in milliseconds. */
-#define MAX_CONNECTION_INTERVAL         MSEC_TO_UNITS(30, UNIT_1_25_MS)     /**< Determines maximum connection interval in milliseconds. */
+#define MAX_CONNECTION_INTERVAL         MSEC_TO_UNITS(7.5, UNIT_1_25_MS)     /**< Determines maximum connection interval in milliseconds. */
 #define SLAVE_LATENCY                   0                                   /**< Determines slave latency in terms of connection events. */
 #define SUPERVISION_TIMEOUT             MSEC_TO_UNITS(4000, UNIT_10_MS)     /**< Determines supervision time-out in units of 10 milliseconds. */
 
 #define LEDBUTTON_BUTTON_PIN            BSP_BUTTON_0                        /**< Button that will write to the LED characteristic of the peer */
 
-#define START_CHANEL_SURVERY_START_PIN  BSP_BUTTON_1                        /**< Button that will start the channel survery  */
-#define UPDATE_CHANNEL_MAP_PIN          BSP_BUTTON_2                         /**< Button that will stop the channel survery  */
+//#define START_CHANEL_SURVERY_START_PIN  BSP_BUTTON_1                        /**< Button that will start the channel survery  */
+//#define UPDATE_CHANNEL_MAP_PIN          BSP_BUTTON_2                         /**< Button that will stop the channel survery  */
 
 #define BUTTON_DETECTION_DELAY          APP_TIMER_TICKS(50)                 /**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
+
+#define PACKET_ERROR_UPDATE_TIMER_INTERVAL                      APP_TIMER_TICKS(1000)
 
 #define SCHED_MAX_EVENT_DATA_SIZE           APP_TIMER_SCHED_EVENT_DATA_SIZE            /**< Maximum size of scheduler events. */
 #ifdef SVCALL_AS_NORMAL_FUNCTION
@@ -110,6 +112,7 @@
 #endif
 
 #define ECHOBACK_BLE_UART_DATA  0                                       /**< Echo the UART data that is received over the Nordic UART Service (NUS) back to the sender. */
+
 #define TX_POWER_LEVEL                  (8)                                    /**< TX Power Level value. This will be set both in the TX Power service, in the advertising data, and also used to set the radio transmit power. */
 
 #define MINIMUM_CHANNEL_SURVEY_SELECTION              15                                /* Use the first number of the channel maps after channel survey */
@@ -122,11 +125,15 @@ BLE_ITS_C_DEF(m_ble_its_c);                                             /**< BLE
 NRF_BLE_GATT_DEF(m_gatt);                                       /**< GATT module instance. */
 BLE_DB_DISCOVERY_DEF(m_db_disc);                                /**< DB discovery module instance. */
 
+
+APP_TIMER_DEF(m_packet_error_rate_update_timer_id);
+static void polling_packet_error_timer_handler(void * p_context);
+
 static uint16_t m_conn_handle          = BLE_CONN_HANDLE_INVALID;                   /**< Handle of the current connection. */
 
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - OPCODE_LENGTH - HANDLE_LENGTH; /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 
-static char const m_target_periph_name[] = "SurveyPeripheral";     /**< Name of the device we try to connect to. This name is searched in the scan report data*/
+static char const m_target_periph_name[] = "Peripheral_PER";     /**< Name of the device we try to connect to. This name is searched in the scan report data*/
 
 /*******************************************************
       Channel Survey testing
@@ -239,7 +246,7 @@ void uart_event_handle(app_uart_evt_t * p_event)
                 if ((data_array[index - 1] == '\n') || (index >= (m_ble_nus_max_data_len)))
                 {
                         NRF_LOG_DEBUG("Ready to send data over BLE NUS");
-                        NRF_LOG_HEXDUMP_DEBUG(data_array, index);
+                        NRF_LOG_HEXDUMP_INFO(data_array, index);
 
                         do
                         {
@@ -364,15 +371,12 @@ static void ble_its_c_evt_handler(ble_its_c_t * p_ble_its_c, ble_its_c_evt_t con
                 NRF_LOG_INFO("Connected to device with Nordic ITS Service.\n\n");
                 break;
 
-        // case BLE_IMG_INFO_C_EVT_NUS_TX_EVT:
-        //         ble_nus_chars_received_uart_print(p_ble_nus_evt->p_data, p_ble_nus_evt->data_len);
-        //         break;
+
         case BLE_ITS_C_EVT_ITS_RX_EVT:
                  NRF_LOG_INFO("BLE_ITS_C_EVT_ITS_RX_EVT");         
                 break;
 
         case BLE_ITS_C_EVT_ITS_TX_EVT:
-                //count++;
 
                 receive_byte += p_ble_its_evt->data_len;
                 NRF_LOG_INFO("BLE_ITS_C_EVT_ITS_TX_EVT %04d", receive_byte);         
@@ -439,6 +443,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 bsp_board_led_on(CENTRAL_CONNECTED_LED);
                 bsp_board_led_off(CENTRAL_SCANNING_LED);
 
+
         } break;
 
         // Upon disconnection, reset the connection handle of the peer which disconnected, update
@@ -450,6 +455,12 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                              p_gap_evt->params.disconnected.reason);
 
                 m_conn_handle =BLE_CONN_HANDLE_INVALID;
+
+                // Start application timers.
+                err_code = app_timer_stop(m_packet_error_rate_update_timer_id);
+                APP_ERROR_CHECK(err_code);
+
+                packet_error_rate_detect_disable();
 
                 scan_start();
         } break;
@@ -463,12 +474,32 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 }
         } break;
 
+        case BLE_GAP_EVT_CONN_PARAM_UPDATE:
+        {
+                //    m_conn_interval_configured = true;
+                NRF_LOG_INFO("Connection interval updated: 0x%x, 0x%x.",
+                             p_gap_evt->params.conn_param_update.conn_params.min_conn_interval,
+                             p_gap_evt->params.conn_param_update.conn_params.max_conn_interval);
+
+                // Start application timers.
+                err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
+                APP_ERROR_CHECK(err_code);
+
+                packet_error_rate_detect_enable();
+
+        } break;
+
+
         case BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
         {
                 // Accept parameters requested by peer.
                 err_code = sd_ble_gap_conn_param_update(p_gap_evt->conn_handle,
                                                         &p_gap_evt->params.conn_param_update_request.conn_params);
                 APP_ERROR_CHECK(err_code);
+
+//                // Start application timers.
+//                err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
+//                APP_ERROR_CHECK(err_code);
         } break;
 
         case BLE_GAP_EVT_PHY_UPDATE_REQUEST:
@@ -501,9 +532,6 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 APP_ERROR_CHECK(err_code);
         } break;
 
-        case BLE_GAP_EVT_QOS_CHANNEL_SURVEY_REPORT:
-                channel_survey_get_report_event(&p_ble_evt->evt.gap_evt.params.qos_channel_survey_report);
-                break;
 
         default:
                 // No implementation needed.
@@ -598,7 +626,7 @@ static void ble_stack_init(void)
         memset(&ble_cfg, 0x00, sizeof(ble_cfg));
         ble_cfg.gap_cfg.role_count_cfg.periph_role_count  = NRF_SDH_BLE_PERIPHERAL_LINK_COUNT;
         ble_cfg.gap_cfg.role_count_cfg.central_role_count = NRF_SDH_BLE_CENTRAL_LINK_COUNT;
-        ble_cfg.gap_cfg.role_count_cfg.qos_channel_survey_role_available = true; /* Enable channel survey role */
+//        ble_cfg.gap_cfg.role_count_cfg.qos_channel_survey_role_available = true; /* Enable channel survey role */
 
         err_code = sd_ble_cfg_set(BLE_GAP_CFG_ROLE_COUNT, &ble_cfg, &ram_start);
         if (err_code != NRF_SUCCESS)
@@ -647,24 +675,6 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
                 }
                 break;
 
-        case START_CHANEL_SURVERY_START_PIN:
-                if (button_action == APP_BUTTON_PUSH)
-                {
-                        NRF_LOG_INFO("Press the button to start the channel survey");
-                        err_code = connection_channel_survey_start();
-                        APP_ERROR_CHECK(err_code);
-                }
-                break;
-
-        case UPDATE_CHANNEL_MAP_PIN:
-                if (button_action == APP_BUTTON_PUSH)
-                {
-                        if (get_channel_map_status())
-                        {
-                                channel_map_request_update(m_conn_handle, MINIMUM_CHANNEL_SURVEY_SELECTION);
-                        }
-                }
-                break;
         default:
                 APP_ERROR_HANDLER(pin_no);
                 break;
@@ -724,8 +734,8 @@ static void buttons_init(void)
         static app_button_cfg_t buttons[] =
         {
                 {LEDBUTTON_BUTTON_PIN, false, BUTTON_PULL, button_event_handler},
-                {START_CHANEL_SURVERY_START_PIN, false, BUTTON_PULL, button_event_handler},
-                {UPDATE_CHANNEL_MAP_PIN, false, BUTTON_PULL, button_event_handler},
+//                {START_CHANEL_SURVERY_START_PIN, false, BUTTON_PULL, button_event_handler},
+//                {UPDATE_CHANNEL_MAP_PIN, false, BUTTON_PULL, button_event_handler},
         };
 
         err_code = app_button_init(buttons, ARRAY_SIZE(buttons),
@@ -777,6 +787,12 @@ static void timer_init(void)
         ret_code_t err_code = app_timer_init();
         APP_ERROR_CHECK(err_code);
 
+        // Create timers.
+        err_code = app_timer_create(&m_packet_error_rate_update_timer_id,
+                                    APP_TIMER_MODE_REPEATED,
+                                    polling_packet_error_timer_handler);
+        APP_ERROR_CHECK(err_code);
+
 }
 
 
@@ -788,6 +804,29 @@ static void power_management_init(void)
         APP_ERROR_CHECK(err_code);
 }
 
+
+static void polling_packet_error_timer_handler(void * p_context)
+{
+        UNUSED_PARAMETER(p_context);
+
+        // Update the packet error rate per
+        uint32_t per_value = packet_error_rate_timeout_handler();
+
+        if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
+        {
+                static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
+                //sprintf(data_array, "%02d\r", get_packet_error_rate());
+                data_array[0] = get_packet_success_rate();
+                NRF_LOG_INFO("Get_packet_success_rate %03d %%", get_packet_success_rate());
+
+                //ret_code_t ret_val = ble_nus_c_string_send(&m_ble_nus_c, data_array, strlen(data_array));
+                ret_code_t ret_val = ble_nus_c_string_send(&m_ble_nus_c, data_array, 1);
+                if ( (ret_val != NRF_ERROR_INVALID_STATE) && (ret_val != NRF_ERROR_RESOURCES) )
+                {
+                        APP_ERROR_CHECK(ret_val);
+                }
+        }
+}
 
 static void scan_init(void)
 {
@@ -869,6 +908,7 @@ int main(void)
         ret_code_t err_code;
         // Initialize.
         log_init();
+        uart_init();
         timer_init();
         leds_init();
         buttons_init();
@@ -883,7 +923,7 @@ int main(void)
         its_c_init();
 
         // Start execution.
-        NRF_LOG_INFO("Example how to check the RSSI / Channel Survey on BLE Central");
+        NRF_LOG_INFO("Central : Check Packet Error Rate");
         scan_start();
 
         err_code = app_button_enable();

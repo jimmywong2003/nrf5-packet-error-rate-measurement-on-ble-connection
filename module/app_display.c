@@ -44,7 +44,10 @@ UG_BUTTON power_button;
 UG_BUTTON adv_button;
 UG_BUTTON led_button;
 UG_BUTTON button_button;
-//UG_IMAGE  image_1;
+UG_IMAGE  image_1;
+
+static char sprintf_buf[64];
+static char sprintf_per[64];
 
 #define MAX_OBJECTS 20
 
@@ -205,10 +208,8 @@ void app_display_create_main_screen(app_display_content_t *content)
 
 #endif 
 
-#if !defined(BOARD_PCA10040)
-//    UG_ImageCreate(&window_1, &image_1, IMG_ID_0, 0, 228, 30, 250);
-//    UG_ImageSetBMP(&window_1, IMG_ID_0, &bmp_nordicsemi);
-#endif
+    UG_ImageCreate(&window_1, &image_1, IMG_ID_0, 0, 228, 30, 250);
+    UG_ImageSetBMP(&window_1, IMG_ID_0, &bmp_nordicsemi);
 
     /* Update the dynamic elements of the screen */
     app_display_update_main_screen(content);
@@ -217,8 +218,7 @@ void app_display_create_main_screen(app_display_content_t *content)
     UG_WindowShow( &window_1 ) ;
 }
 
-static char sprintf_buf[64];
-static char sprintf_per[64];
+
 
 void app_display_update_main_screen(app_display_content_t *content)
 {

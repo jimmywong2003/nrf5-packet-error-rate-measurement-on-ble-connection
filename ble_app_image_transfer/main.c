@@ -96,7 +96,7 @@
 #define APP_STATE_BUTTON                BSP_BUTTON_2
 #define LEDBUTTON_BUTTON                BSP_BUTTON_3                            /**< Button that will trigger the notification event with the LED Button Service */
 
-#define DEVICE_NAME                     "SurveyPeripheral"                         /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "Peripheral_PER"                         /**< Name of device. Will be included in the advertising data. */
 
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
 
@@ -107,12 +107,12 @@
 #define APP_ADV_DURATION                BLE_GAP_ADV_TIMEOUT_GENERAL_UNLIMITED   /**< The advertising time-out (in units of seconds). When set to 0, we will never time out. */
 #define RESTART_ADVERTISING_TIMEOUT_MS  2000
 
-#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(7.5, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.5 seconds). */
-#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(7.5, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (1 second). */
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(400, UNIT_1_25_MS)        /**< Minimum acceptable connection interval (0.5 seconds). */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(400, UNIT_1_25_MS)        /**< Maximum acceptable connection interval (1 second). */
 #define SLAVE_LATENCY                   0                                       /**< Slave latency. */
 #define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(6000, UNIT_10_MS)         /**< Connection supervisory time-out (4 seconds). */
 
-#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(50000)                  /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
+#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(5000)                  /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(20000)                   /**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                       /**< Number of attempts before giving up the connection parameter negotiation. */
 
@@ -125,14 +125,20 @@
 #define SCHED_QUEUE_SIZE                    10                                         /**< Maximum number of events in the scheduler queue. */
 #endif
 
+#ifdef NRF52840_XXAA
 #define TX_POWER_LEVEL                  (8)                                    /**< TX Power Level value. This will be set both in the TX Power service, in the advertising data, and also used to set the radio transmit power. */
-
+#else
+#define TX_POWER_LEVEL                  (4)                                    /**< TX Power Level value. This will be set both in the TX Power service, in the advertising data, and also used to set the radio transmit power. */
+#endif
 
 #define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
 
 #define DEAD_BEEF                       0xDEADBEEF                              /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
 
+#define CONNECTION_ONE_SECOND_INTERVAL     APP_TIMER_TICKS(1000)                   /**< Battery level measurement interval (ticks). */
+
+APP_TIMER_DEF(m_connection_one_sec_timer_id);
 
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE NUS service instance. */
 BLE_ITS_DEF(m_its, NRF_SDH_BLE_TOTAL_LINK_COUNT);                                   /**< BLE IMAGE TRANSFER service instance. */
@@ -141,12 +147,13 @@ BLE_LBS_DEF(m_lbs);                                                             
 NRF_BLE_GATT_DEF(m_gatt);                                                       /**< GATT module instance. */
 NRF_BLE_QWR_DEF(m_qwr);                                                         /**< Context for the Queued Write module.*/
 
+APP_TIMER_DEF(m_restart_advertising_timer_id);
+
 static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        /**< Handle of the current connection. */
 
 static uint8_t m_adv_handle = BLE_GAP_ADV_SET_HANDLE_NOT_SET;                   /**< Advertising handle used to identify an advertising set. */
 static uint8_t m_enc_advdata[BLE_GAP_ADV_SET_DATA_SIZE_MAX];                    /**< Buffer for storing an encoded advertising set. */
 static uint8_t m_enc_scan_response_data[BLE_GAP_ADV_SET_DATA_SIZE_MAX];         /**< Buffer for storing an encoded scan data. */
-
 
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;              /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 
@@ -155,13 +162,20 @@ static uint16_t m_ble_its_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;          
 
 app_display_content_t m_application_state = {0};
 
-
 static uint8_t m_new_command_received = 0;
 static uint8_t m_new_resolution, m_new_phy;
 static bool m_stream_mode_active = false;
 
-#define TEST_BUFFER_LEN     (50*1024)
-static uint8_t buffer[TEST_BUFFER_LEN] = { 0 };
+static void display_update(void);
+static void advertising_start(void);
+
+static uint8_t img_data_buffer[BLE_ITS_MAX_DATA_LEN];
+static uint32_t img_data_length = BLE_ITS_MAX_DATA_LEN;
+static uint8_t m_buffer_transfer_index = 0;
+static uint32_t frameCount = 0;
+static uint32_t frameCount_previous = 0;
+static bool test_flag = false;
+static bool start_thoughput_test = false;
 
 /**@brief Struct that contains pointers to the encoded advertising data. */
 static ble_gap_adv_data_t m_adv_data =
@@ -179,11 +193,40 @@ static ble_gap_adv_data_t m_adv_data =
         }
 };
 
-APP_TIMER_DEF(m_restart_advertising_timer_id);
+
+static void test_thoughput(void)
+{ 
+        {
+                uint32_t ret_code;
+                do
+                {
+                        memset(img_data_buffer, m_buffer_transfer_index, BLE_ITS_MAX_DATA_LEN);
+                        ret_code = ble_its_send_file_fragment(&m_its, img_data_buffer, BLE_ITS_MAX_DATA_LEN);
+                        if(ret_code == NRF_SUCCESS)
+                        {
+                                img_data_length = 0;
+
+                        }
+                        m_buffer_transfer_index++;
+                        m_buffer_transfer_index = m_buffer_transfer_index % 10;
+                } while(ret_code == NRF_SUCCESS);
+        }
+}
+
+static void connection_one_second_timeout_handler(void * p_context)
+{
+        UNUSED_PARAMETER(p_context);
+
+        uint32_t throughput_kbps = ((frameCount-frameCount_previous)*BLE_ITS_MAX_DATA_LEN*8);
+
+        NRF_LOG_INFO("TX Count = %d, %02d bits", frameCount, throughput_kbps);
+        frameCount_previous = frameCount;
+
+        m_application_state.throughput_kbps = throughput_kbps/1000;
+        display_update();
+}
 
 
-static void display_update(void);
-static void advertising_start(void);
 
 /**@brief Function for assert macro callback.
  *
@@ -227,6 +270,11 @@ static void timers_init(void)
         APP_ERROR_CHECK(err_code);
 
         err_code = app_timer_create(&m_restart_advertising_timer_id, APP_TIMER_MODE_SINGLE_SHOT, restart_advertising_callback);
+        APP_ERROR_CHECK(err_code);
+
+        err_code = app_timer_create(&m_connection_one_sec_timer_id,
+                            APP_TIMER_MODE_REPEATED,
+                            connection_one_second_timeout_handler);
         APP_ERROR_CHECK(err_code);
 }
 
@@ -297,6 +345,12 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
         {
                 uint32_t err_code;
 
+                uint16_t packet_error_rate = p_evt->params.rx_data.p_data[0];
+                NRF_LOG_INFO("Packet error Rate = %d", packet_error_rate);
+
+                //m_application_state.rssi[p_ble_evt->evt.gap_evt.conn_handle] = p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
+                m_application_state.per     = packet_error_rate;
+
                 for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
                 {
                         do
@@ -344,9 +398,9 @@ void gatt_evt_handler(nrf_ble_gatt_t * p_gatt, nrf_ble_gatt_evt_t const * p_evt)
                 m_ble_params_info.mtu = m_ble_its_max_data_len;
                 ble_its_ble_params_info_send(&m_its, &m_ble_params_info);
         }
-        //NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
-        //            p_gatt->att_mtu_desired_central,
-        //        p_gatt->att_mtu_desired_periph);
+        NRF_LOG_DEBUG("ATT MTU exchange completed. central 0x%x peripheral 0x%x",
+                p_gatt->att_mtu_desired_central,
+                p_gatt->att_mtu_desired_periph);
 }
 
 /**@brief Function for initializing the GATT module.
@@ -387,6 +441,7 @@ static void advertising_init(void)
         advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
 
         memset(&srdata, 0, sizeof(srdata));
+        
         // srdata.uuids_complete.uuid_cnt = sizeof(adv_uuids) / sizeof(adv_uuids[0]);
         // srdata.uuids_complete.p_uuids  = adv_uuids;
 
@@ -673,7 +728,6 @@ static void ble_go_to_idle(void)
                 break;
 
         case APP_STATE_CONNECTED:
-                //for(int i = 0; i < (m_application_state.phy == APP_PHY_MULTI ? 3 : 1); i++)
         {
                 if(m_conn_handle != BLE_CONN_HANDLE_INVALID)
                 {
@@ -714,6 +768,7 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
         switch (p_ble_evt->header.evt_id)
         {
         case BLE_GAP_EVT_CONNECTED:
+
                 NRF_LOG_INFO("Connected");
                 bsp_board_led_on(CONNECTED_LED);
                 bsp_board_led_off(ADVERTISING_LED);
@@ -725,6 +780,14 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
                 tx_power_set();
 
+                err_code = sd_ble_gap_rssi_start(m_conn_handle, 1, 2);
+                APP_ERROR_CHECK(err_code);
+
+                m_application_state.app_state = APP_STATE_CONNECTED;
+                display_update();
+
+                start_thoughput_test = false;
+
                 break;
 
         case BLE_GAP_EVT_DISCONNECTED:
@@ -734,6 +797,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 err_code = app_button_disable();
                 APP_ERROR_CHECK(err_code);
                 advertising_start();
+
+                start_thoughput_test = false;
                 break;
 
         case BLE_GAP_EVT_CONN_PARAM_UPDATE:
@@ -826,11 +891,17 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
 
         case BLE_GAP_EVT_RSSI_CHANGED:
                 m_application_state.rssi[p_ble_evt->evt.gap_evt.conn_handle] = p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
-                //display_update();
+//                display_update();
                 break;
 
 
         case BLE_GATTS_EVT_HVN_TX_COMPLETE:
+                if (test_flag)
+                {
+                        test_thoughput();
+
+                }
+                frameCount++;
                 break;
 
         default:
@@ -950,6 +1021,28 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
                 }
                 break;
         case LEDBUTTON_BUTTON:
+                if(button_action == APP_BUTTON_PUSH)
+                {
+
+                        if (test_flag == false)
+                        {
+                              test_flag = true;
+                              start_thoughput_test = true;
+                              frameCount = 0;
+                              frameCount_previous = 0;
+                              NRF_LOG_INFO("Enable");
+                        }
+                        else if (test_flag)
+                        {
+                              test_flag = false;
+                              start_thoughput_test = false;
+                              frameCount = 0;
+                              frameCount_previous = 0;
+                              NRF_LOG_INFO("Disable");
+                        }
+                        NRF_LOG_INFO("start_thoughput_test =%d, test_flag = %d", start_thoughput_test, test_flag);
+                }
+
                 break;
 
         default:
@@ -1007,7 +1100,6 @@ static void idle_state_handle(void)
 {
         app_sched_execute();
         while(NRF_LOG_PROCESS());
-        //UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
         nrf_pwr_mgmt_run();
 }
 
@@ -1041,7 +1133,7 @@ int main(void)
         conn_params_init();
 
         // Start execution.
-        NRF_LOG_INFO("Channel Map Update Example : Peripheral LBS + NUS.");
+        NRF_LOG_INFO("Packet Error Rate : Peripheral LBS + NUS.");
 
         app_display_init(&m_application_state);
         display_update();
@@ -1049,14 +1141,18 @@ int main(void)
         err_code = app_button_enable();
         APP_ERROR_CHECK(err_code);
 
-//        err_code = app_timer_start(m_connection_one_sec_timer_id, CONNECTION_ONE_SECOND_INTERVAL, NULL);
-//        APP_ERROR_CHECK(err_code);
-
-        // advertising_start();
+        err_code = app_timer_start(m_connection_one_sec_timer_id, CONNECTION_ONE_SECOND_INTERVAL, NULL);
+        APP_ERROR_CHECK(err_code);
 
         // Enter main loop.
         for (;;)
         {
+
+                if (start_thoughput_test)
+                {
+                        test_thoughput();
+                        start_thoughput_test = false;
+                }
                 idle_state_handle();
         }
 }

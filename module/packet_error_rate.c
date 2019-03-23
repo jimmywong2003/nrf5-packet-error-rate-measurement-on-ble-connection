@@ -175,7 +175,7 @@ uint32_t packet_error_rate_timeout_handler(void)
         u32_radio_packet_crcok_per_interval = NRF_TIMER_RX_CRCOK->CC[0];
 
         //printf("%02d\n", radio_packet_success_rate);
-        NRF_LOG_INFO("PER Timeout %d, %d", radio_packet_ready, radio_packet_crcok);
+        NRF_LOG_DEBUG("PER Timeout %d, %d", radio_packet_ready, radio_packet_crcok);
         
         //NRF_LOG_INFO("Packet Success Rate %02d %%\n", radio_packet_success_rate);
 

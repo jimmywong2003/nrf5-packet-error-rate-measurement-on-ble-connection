@@ -134,7 +134,7 @@ APP_TIMER_DEF(m_packet_error_rate_update_timer_id);
 static bool m_packet_error_rate_timer_is_running = false;
 static void polling_packet_error_timer_handler(void *p_context);
 
-#define TEST_FIRMWARE_SIZE (1024 * 1024)    // Throughput test on the packet size
+#define TEST_FIRMWARE_SIZE (4*1024 * 1024)    // Throughput test on the packet size
 
 static uint32_t receive_byte = 0;
 static uint32_t previous_receive_byte = 0;
@@ -695,8 +695,10 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
                                 previous_receive_byte = 0;
 
                                 packet_error_rate_reset_counter();
-                                if (m_packet_error_rate_timer_is_running != false)
+                                //NRF_LOG_INFO("Press button %d, is running = %d", button_action, m_packet_error_rate_timer_is_running);
+                                if (m_packet_error_rate_timer_is_running != true)
                                 {
+                                        
                                         err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
                                         APP_ERROR_CHECK(err_code);
                                         m_packet_error_rate_timer_is_running = true;
@@ -852,7 +854,7 @@ static void polling_packet_error_timer_handler(void *p_context)
                 }
         }
 
-        NRF_LOG_DEBUG("Received data = %06d", (receive_byte - previous_receive_byte) * 8);
+        NRF_LOG_INFO("Received data = %06d, Percentage %d %%", (receive_byte - previous_receive_byte) * 8, receive_byte*100/TEST_FIRMWARE_SIZE);
 
         if (receive_byte > TEST_FIRMWARE_SIZE)
         {
@@ -863,7 +865,7 @@ static void polling_packet_error_timer_handler(void *p_context)
                 NRF_LOG_INFO("Accumlate Packet Sent %08d", m_packet_error_result.radio_packet_ready);
                 NRF_LOG_INFO("Accumlate Packet Receive CRCOK %08d", m_packet_error_result.radio_packet_crcok);
 
-                NRF_LOG_INFO("Send %d KB data with Packet Success Rate = %d", TEST_FIRMWARE_SIZE / 1024, m_packet_error_result.radio_packet_success_rate);
+                NRF_LOG_INFO("received %d KB data with Packet Success Rate = %d", receive_byte / 1024, m_packet_error_result.radio_packet_success_rate);
                 NRF_LOG_INFO("=============================");
                 if (m_packet_error_rate_timer_is_running)
                 {

@@ -140,6 +140,8 @@
 
 APP_TIMER_DEF(m_connection_one_sec_timer_id);
 
+static bool m_connection_one_sec_timer_is_running = false;
+
 BLE_NUS_DEF(m_nus, NRF_SDH_BLE_TOTAL_LINK_COUNT); /**< BLE NUS service instance. */
 BLE_ITS_DEF(m_its, NRF_SDH_BLE_TOTAL_LINK_COUNT); /**< BLE IMAGE TRANSFER service instance. */
 BLE_LBS_DEF(m_lbs);                               /**< LED Button Service instance. */
@@ -239,7 +241,12 @@ static void test_thoughput(void)
                         NRF_LOG_INFO("Sent %u bytes of ATT payload.", data_send);
                         NRF_LOG_INFO("Retrieving amount of bytes received from peer...");
 
-                        app_timer_stop(m_connection_one_sec_timer_id);
+                        if (m_connection_one_sec_timer_is_running)
+                        {
+                                ret_code = app_timer_stop(m_connection_one_sec_timer_id);
+                                APP_ERROR_CHECK(ret_code);
+                                m_connection_one_sec_timer_is_running = false;
+                        }
                         break;
                 }
         } while (ret_code == NRF_SUCCESS);
@@ -530,6 +537,8 @@ static void led_write_handler(uint16_t conn_handle, ble_lbs_t *p_lbs, uint8_t le
         {
                 bsp_board_led_on(LEDBUTTON_LED);
                 NRF_LOG_INFO("Received LED ON!");
+
+                // Get the request fro central in order to start the throughput test
                 if (start_thoughput_test)
                 {
                         start_thoughput_test = false;
@@ -542,8 +551,12 @@ static void led_write_handler(uint16_t conn_handle, ble_lbs_t *p_lbs, uint8_t le
                         finish_time = 0;
                         data_send = 0;
                         test_thoughput();
-                        err_code = app_timer_start(m_connection_one_sec_timer_id, CONNECTION_ONE_SECOND_INTERVAL, NULL);
-                        APP_ERROR_CHECK(err_code);
+                        if (m_connection_one_sec_timer_is_running == false)
+                        {
+                                err_code = app_timer_start(m_connection_one_sec_timer_id, CONNECTION_ONE_SECOND_INTERVAL, NULL);
+                                APP_ERROR_CHECK(err_code);
+                                m_connection_one_sec_timer_is_running = true;
+                        }
                 }
         }
         else
@@ -805,6 +818,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
                 NRF_LOG_INFO("Connected");
                 bsp_board_led_on(CONNECTED_LED);
                 bsp_board_led_off(ADVERTISING_LED);
+
                 m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
                 err_code = nrf_ble_qwr_conn_handle_assign(&m_qwr, m_conn_handle);
                 APP_ERROR_CHECK(err_code);
@@ -1159,12 +1173,6 @@ int main(void)
         // Enter main loop.
         for (;;)
         {
-
-                //                if (start_thoughput_test)
-                //                {
-                //                        test_thoughput();
-                //                        start_thoughput_test = false;
-                //                }
                 idle_state_handle();
         }
 }

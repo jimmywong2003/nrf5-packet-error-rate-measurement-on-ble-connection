@@ -44,6 +44,8 @@ void packet_error_rate_detect_enable(void);
 
 void packet_error_rate_detect_disable(void);
 
+void packet_error_rate_reset_counter(void);
+
 uint32_t packet_error_rate_timeout_handler(void);
 
 uint32_t get_packet_success_rate(void);

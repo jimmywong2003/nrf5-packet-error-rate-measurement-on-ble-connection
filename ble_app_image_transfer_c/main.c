@@ -95,9 +95,8 @@
 #define SUPERVISION_TIMEOUT MSEC_TO_UNITS(10000, UNIT_10_MS)     /**< Determines supervision time-out in units of 10 milliseconds. */
 
 #define LEDBUTTON_BUTTON_PIN BSP_BUTTON_0 /**< Button that will write to the LED characteristic of the peer */
-
-//#define START_CHANEL_SURVERY_START_PIN  BSP_BUTTON_1                        /**< Button that will start the channel survery  */
-//#define UPDATE_CHANNEL_MAP_PIN          BSP_BUTTON_2                         /**< Button that will stop the channel survery  */
+#define START_CHANEL_SURVERY_START_PIN  BSP_BUTTON_1                        /**< Button that will start the channel survery  */
+#define UPDATE_CHANNEL_MAP_PIN          BSP_BUTTON_2                         /**< Button that will stop the channel survery  */
 
 #define BUTTON_DETECTION_DELAY APP_TIMER_TICKS(50) /**< Delay from a GPIOTE event until a button is reported as pushed (in number of timer ticks). */
 
@@ -132,9 +131,10 @@ static uint16_t m_conn_handle = BLE_CONN_HANDLE_INVALID;                        
 static uint16_t m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - OPCODE_LENGTH - HANDLE_LENGTH; /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 
 APP_TIMER_DEF(m_packet_error_rate_update_timer_id);
+static bool m_packet_error_rate_timer_is_running = false;
 static void polling_packet_error_timer_handler(void *p_context);
 
-#define TEST_FIRMWARE_SIZE (1024 * 1024)
+#define TEST_FIRMWARE_SIZE (1024 * 1024)    // Throughput test on the packet size
 
 static uint32_t receive_byte = 0;
 static uint32_t previous_receive_byte = 0;
@@ -182,7 +182,6 @@ static void scan_start(void)
         APP_ERROR_CHECK(err_code);
 
         bsp_board_led_off(CENTRAL_CONNECTED_LED);
-
         bsp_board_led_on(CENTRAL_SCANNING_LED);
 }
 
@@ -437,6 +436,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
                 err_code = ble_its_c_handles_assign(&m_ble_its_c, p_gap_evt->conn_handle, NULL);
                 APP_ERROR_CHECK(err_code);
 
+                // Change the TX Power
                 tx_power_set();
 
                 err_code = ble_db_discovery_start(&m_db_disc, p_gap_evt->conn_handle);
@@ -447,10 +447,9 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
                 bsp_board_led_on(CENTRAL_CONNECTED_LED);
                 bsp_board_led_off(CENTRAL_SCANNING_LED);
 
+                packet_error_rate_reset_counter();
+
                 packet_error_rate_detect_enable();
-                // Start application timers.
-                //                err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
-                //                APP_ERROR_CHECK(err_code);
         }
         break;
 
@@ -465,11 +464,16 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
                 m_conn_handle = BLE_CONN_HANDLE_INVALID;
 
                 // Start application timers.
-                err_code = app_timer_stop(m_packet_error_rate_update_timer_id);
-                APP_ERROR_CHECK(err_code);
+                if (m_packet_error_rate_timer_is_running)
+                {
+                        err_code = app_timer_stop(m_packet_error_rate_update_timer_id);
+                        APP_ERROR_CHECK(err_code);
+                        m_packet_error_rate_timer_is_running = false;
+                }
 
                 packet_error_rate_detect_disable();
 
+                // Start to scan again the target device
                 scan_start();
         }
         break;
@@ -500,9 +504,6 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
                                                         &p_gap_evt->params.conn_param_update_request.conn_params);
                 APP_ERROR_CHECK(err_code);
 
-                //                // Start application timers.
-                //                err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
-                //                APP_ERROR_CHECK(err_code);
         }
         break;
 
@@ -520,10 +521,10 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
         {
                 NRF_LOG_DEBUG("PHY update request.");
                 ble_gap_phys_t const phys =
-                    {
+                {
                         .rx_phys = BLE_GAP_PHY_AUTO,
                         .tx_phys = BLE_GAP_PHY_AUTO,
-                    };
+                };
                 err_code = sd_ble_gap_phy_update(p_ble_evt->evt.gap_evt.conn_handle, &phys);
                 APP_ERROR_CHECK(err_code);
         }
@@ -561,14 +562,15 @@ static void uart_init(void)
         ret_code_t err_code;
 
         app_uart_comm_params_t const comm_params =
-            {
+        {
                 .rx_pin_no = RX_PIN_NUMBER,
                 .tx_pin_no = TX_PIN_NUMBER,
                 .rts_pin_no = RTS_PIN_NUMBER,
                 .cts_pin_no = CTS_PIN_NUMBER,
                 .flow_control = APP_UART_FLOW_CONTROL_DISABLED,
                 .use_parity = false,
-                .baud_rate = UART_BAUDRATE_BAUDRATE_Baud115200};
+                .baud_rate = UART_BAUDRATE_BAUDRATE_Baud115200
+        };
 
         APP_UART_FIFO_INIT(&comm_params,
                            UART_RX_BUF_SIZE,
@@ -651,9 +653,11 @@ static void ble_stack_init(void)
         err_code = nrf_sdh_ble_enable(&ram_start);
         APP_ERROR_CHECK(err_code);
 
+        // Set the Power mode to Low power mode
         err_code = sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
         APP_ERROR_CHECK(err_code);
 
+        // Enaable the DCDC Power Mode
         err_code = sd_power_dcdc_mode_set(NRF_POWER_DCDC_ENABLE);
         APP_ERROR_CHECK(err_code);
 
@@ -673,6 +677,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         switch (pin_no)
         {
         case LEDBUTTON_BUTTON_PIN:
+                // Prss the LED button to trigger the throughput test start
                 err_code = ble_lbs_led_status_send(&m_ble_lbs_c, button_action);
                 if (err_code != NRF_SUCCESS &&
                     err_code != BLE_ERROR_INVALID_CONN_HANDLE &&
@@ -690,8 +695,13 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
                                 previous_receive_byte = 0;
 
                                 packet_error_rate_reset_counter();
-                                err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
-                                APP_ERROR_CHECK(err_code);
+                                if (m_packet_error_rate_timer_is_running != false)
+                                {
+                                        err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
+                                        APP_ERROR_CHECK(err_code);
+                                        m_packet_error_rate_timer_is_running = true;
+                                }
+
                         }
                 }
                 break;
@@ -720,7 +730,8 @@ static void scan_evt_handler(scan_evt_t const *p_scan_evt)
         case NRF_BLE_SCAN_EVT_CONNECTED:
         {
                 ble_gap_evt_connected_t const *p_connected =
-                    p_scan_evt->params.connected.p_connected;
+                        p_scan_evt->params.connected.p_connected;
+
                 // Scan is automatically stopped by the connection.
                 NRF_LOG_INFO("Connecting to target 0x%02x%02x%02x%02x%02x%02x",
                              p_connected->peer_addr.addr[0],
@@ -738,6 +749,7 @@ static void scan_evt_handler(scan_evt_t const *p_scan_evt)
                 scan_start();
         }
         break;
+
         default:
                 break;
         }
@@ -751,11 +763,11 @@ static void buttons_init(void)
 
         //The array must be static because a pointer to it will be saved in the button handler module.
         static app_button_cfg_t buttons[] =
-            {
+        {
                 {LEDBUTTON_BUTTON_PIN, false, BUTTON_PULL, button_event_handler},
-                //                {START_CHANEL_SURVERY_START_PIN, false, BUTTON_PULL, button_event_handler},
-                //                {UPDATE_CHANNEL_MAP_PIN, false, BUTTON_PULL, button_event_handler},
-            };
+                {START_CHANEL_SURVERY_START_PIN, false, BUTTON_PULL, button_event_handler},
+                {UPDATE_CHANNEL_MAP_PIN, false, BUTTON_PULL, button_event_handler},
+        };
 
         err_code = app_button_init(buttons, ARRAY_SIZE(buttons),
                                    BUTTON_DETECTION_DELAY);
@@ -827,6 +839,8 @@ static void polling_packet_error_timer_handler(void *p_context)
         if (m_conn_handle != BLE_CONN_HANDLE_INVALID)
         {
                 static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
+
+                // Sending the PER rate to peripheral side
                 data_array[0] = get_packet_success_rate();
                 NRF_LOG_DEBUG("Get_packet_success_rate %03d %%", get_packet_success_rate());
 
@@ -851,8 +865,12 @@ static void polling_packet_error_timer_handler(void *p_context)
 
                 NRF_LOG_INFO("Send %d KB data with Packet Success Rate = %d", TEST_FIRMWARE_SIZE / 1024, m_packet_error_result.radio_packet_success_rate);
                 NRF_LOG_INFO("=============================");
-                ret_val = app_timer_stop(m_packet_error_rate_update_timer_id);
-                APP_ERROR_CHECK(ret_val);
+                if (m_packet_error_rate_timer_is_running)
+                {
+                        ret_val = app_timer_stop(m_packet_error_rate_update_timer_id);
+                        APP_ERROR_CHECK(ret_val);
+                        m_packet_error_rate_timer_is_running = false;
+                }
         }
         previous_receive_byte = receive_byte;
 }
@@ -957,9 +975,13 @@ int main(void)
         err_code = app_button_enable();
         APP_ERROR_CHECK(err_code);
 
-        // Start application timers.
-        err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
-        APP_ERROR_CHECK(err_code);
+        // Start application timers. == false
+        if (m_packet_error_rate_timer_is_running == false)
+        {
+                err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
+                APP_ERROR_CHECK(err_code);
+                m_packet_error_rate_timer_is_running = true;
+        }
 
         // Enter main loop.
         for (;;)

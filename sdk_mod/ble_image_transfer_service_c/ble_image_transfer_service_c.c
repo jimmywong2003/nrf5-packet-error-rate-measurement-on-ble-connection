@@ -91,6 +91,10 @@ typedef struct
 } tx_message_t;
 
 
+static tx_message_t m_tx_buffer[TX_BUFFER_SIZE];  /**< Transmit buffer for messages to be transmitted to the central. */
+static uint32_t m_tx_insert_index = 0;            /**< Current index in the transmit buffer where the next message should be inserted. */
+static uint32_t m_tx_index = 0;                   /**< Current index in the transmit buffer from where the next message to be transmitted resides. */
+
 #define ITS_ENABLE_PIN_DEBUGGING 0
 
 #if (ITS_ENABLE_PIN_DEBUGGING == 1)
@@ -132,10 +136,6 @@ static void its_enable_gpio_debug(void)
 
 
 
-
-static tx_message_t m_tx_buffer[TX_BUFFER_SIZE];  /**< Transmit buffer for messages to be transmitted to the central. */
-static uint32_t m_tx_insert_index = 0;            /**< Current index in the transmit buffer where the next message should be inserted. */
-static uint32_t m_tx_index = 0;                   /**< Current index in the transmit buffer from where the next message to be transmitted resides. */
 
 static void tx_buffer_process(void)
 {
@@ -250,7 +250,7 @@ static void on_hvx(ble_its_c_t * p_ble_its_c, ble_evt_t const * p_ble_evt)
                         //NRF_LOG_DEBUG("Client sending data.");
                 }
         }
-                // Check if this is a Button notification.
+        // Check if this is a Button notification.
         if ((p_ble_evt->evt.gattc_evt.params.hvx.handle == p_ble_its_c->handles.its_img_info_handle) \
             && (p_ble_its_c->evt_handler != NULL))
         {

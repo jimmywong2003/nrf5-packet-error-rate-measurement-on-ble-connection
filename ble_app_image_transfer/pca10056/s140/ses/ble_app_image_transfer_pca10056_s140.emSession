@@ -26,7 +26,9 @@
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Application"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Board Definition"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Display"/>
+  <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Display"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;Modified_BLE_Services"/>
+  <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;nRF_BLE"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;nRF_Drivers"/>
   <ProjectSessionItem path="ble_app_image_transfer_pca10056_s140;ble_app_image_transfer_pca10056_s140;nRF_Libraries"/>
  </Project>
@@ -49,7 +51,10 @@
   <Trace enabled="Yes"/>
  </TraceWindow>
  <Watch1>
-  <Watches active="1" update="Never"/>
+  <Watches active="1" update="Never">
+   <Watchpoint numelements="0" expression="start_thoughput_test" evalMode="0" name="start_thoughput_test" radix="-1" linenumber="881" filename="../../../main.c" list=""/>
+   <Watchpoint numelements="0" expression="test_flag" evalMode="0" name="test_flag" radix="-1" linenumber="979" filename="../../../main.c" list=""/>
+  </Watches>
  </Watch1>
  <Watch2>
   <Watches active="0" update="Never"/>
@@ -61,7 +66,21 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="1" y="1017" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="1001" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1171" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="1157" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="91" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/app_error_weak.c" selected="0" top="84" codecName=""/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="29" y="48" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/boards/pca10056.h" selected="0" top="25" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="542" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../modules/nrfx/hal/nrf_gpio.h" selected="0" top="528" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="9" y="495" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service/ble_image_transfer_service.c" selected="0" top="511" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="227" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/softdevice/s140/headers/ble.h" selected="0" top="216" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="403" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/softdevice/s140/headers/ble_gatts.h" selected="0" top="397" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="39" y="12519" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="12505" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/ble/nrf_ble_qwr/nrf_ble_qwr.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="173" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/ble/nrf_ble_gatt/nrf_ble_gatt.c" selected="0" top="145" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="1045" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/timer/app_timer.c" selected="0" top="1029" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="570" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../modules/nrfx/hal/nrf_spim.h" selected="0" top="543" codecName=""/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="284" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/ble/common/ble_conn_params.c" selected="0" top="270" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="121" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/app_display.h" selected="0" top="107" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="253" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/app_display.c" selected="0" top="253" codecName="Default"/>
  </Files>
- <ARMCrossStudioWindow activeProject="ble_app_image_transfer_pca10056_s140" fileDialogDefaultFilter="*.asm;*.s;*.inc" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf52840.s&#xa;&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf_common.s&#xa;" fileDialogInitialDirectory="" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <ARMCrossStudioWindow activeProject="ble_app_image_transfer_pca10056_s140" fileDialogDefaultFilter="" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf52840.s&#xa;&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf_common.s&#xa;&#xa;C:/Nordic_Semiconductor_ASA/nRF5_SDK_15.3.0_59ac345/github_example/nrf5-packet-error-rate-measurement-on-ble-connection/ble_app_image_transfer/main.c&#xa;C:/Nordic_Semiconductor_ASA/SDK_15.3/github_example/nrf5-packet-error-rate-measurement-on-ble-connection/ble_app_image_transfer/main.c" fileDialogInitialDirectory="C:/Nordic_Semiconductor_ASA/SDK_15.3/github_example/nrf5-packet-error-rate-measurement-on-ble-connection/ble_app_image_transfer" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

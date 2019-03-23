@@ -251,12 +251,14 @@ void app_display_update_main_screen(app_display_content_t *content)
         UG_ButtonSetBackColor(&window_1, BTN_ID_2, display_app_state_button_color[content->app_state]); 
         UG_ButtonSetForeColor(&window_1, BTN_ID_2, display_app_state_button_font_color[content->app_state]);
         UG_ButtonSetText(&window_1, BTN_ID_2, display_string_app_state[content->app_state]); 
+
         if(content->app_state == APP_STATE_CONNECTED)
         {
             UG_TextboxShow(&window_1, TXB_ID_4);
             UG_TextboxShow(&window_1, TXB_ID_7);
             UG_TextboxShow(&window_1, TXB_ID_12);
             UG_TextboxShow(&window_1, TXB_ID_13); //PER
+
             if(content->phy == APP_PHY_MULTI)
             {
                 UG_TextboxShow(&window_1, TXB_ID_3);

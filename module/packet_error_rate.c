@@ -23,7 +23,11 @@
 static uint32_t u32_radio_packet_ready_per_interval = 0;
 static uint32_t u32_radio_packet_crcok_per_interval = 0;
 
+static packet_error_t m_accumlated_radio_packet;
+
 static uint32_t radio_packet_success_rate = 0;
+static uint32_t radio_packet_ready = 0;
+static uint32_t radio_packet_crcok = 0;
 
 void timer_1_init()
 {
@@ -45,6 +49,14 @@ void timer_2_init()
         NRF_TIMER_RX_CRCOK->MODE = TIMER_MODE_MODE_LowPowerCounter << TIMER_MODE_MODE_Pos;
         NRF_TIMER_RX_CRCOK->CC[TIMER_RELOAD_CC_NUM] = TIMER_RELOAD;
         NRF_TIMER_RX_CRCOK->TASKS_START = 1;
+}
+
+void packet_error_rate_reset_counter(void)
+{
+        memset(&m_accumlated_radio_packet, 0, sizeof(m_accumlated_radio_packet));
+        radio_packet_success_rate = 0;
+        radio_packet_ready = 0;
+        radio_packet_crcok = 0;
 }
 
 void packet_error_rate_detect_enable(void)
@@ -143,10 +155,6 @@ void packet_error_rate_detect_disable(void)
 uint32_t packet_error_rate_timeout_handler(void)
 {
         //UNUSED_PARAMETER(p_context);
-
-        uint32_t radio_packet_ready = 0;
-        uint32_t radio_packet_crcok = 0;
-
         NRF_TIMER_TX_READY->TASKS_CAPTURE[0] = 1;
         NRF_TIMER_RX_CRCOK->TASKS_CAPTURE[0] = 1;
 
@@ -168,13 +176,20 @@ uint32_t packet_error_rate_timeout_handler(void)
 
         //printf("%02d\n", radio_packet_success_rate);
         NRF_LOG_INFO("PER Timeout %d, %d", radio_packet_ready, radio_packet_crcok);
-
-        NRF_LOG_INFO("Packet Success Rate %02d %%\n", radio_packet_success_rate);
+        
+        //NRF_LOG_INFO("Packet Success Rate %02d %%\n", radio_packet_success_rate);
 
         // NRF_TIMER_TX_READY->TASKS_CLEAR = 1;
         // NRF_TIMER_RX_CRCOK->TASKS_CLEAR = 1;
 
         //NRF_LOG_INFO( "Float " NRF_LOG_FLOAT_MARKER "\r\n", NRF_LOG_FLOAT(radio_packet_success_rate));
+
+        m_accumlated_radio_packet.radio_packet_crcok += radio_packet_crcok;
+        m_accumlated_radio_packet.radio_packet_ready += radio_packet_ready;
+
+        NRF_LOG_INFO("PER accumulated %d, %d", m_accumlated_radio_packet.radio_packet_ready, m_accumlated_radio_packet.radio_packet_crcok);
+
+        m_accumlated_radio_packet.radio_packet_success_rate = (m_accumlated_radio_packet.radio_packet_crcok * 100)/(m_accumlated_radio_packet.radio_packet_ready);
 
         if (radio_packet_ready > 0xFFFF0000)
         {
@@ -190,3 +205,9 @@ uint32_t get_packet_success_rate(void)
 {
         return radio_packet_success_rate;
 }
+
+void get_accumlated_packet_success_rate(packet_error_t *per)
+{
+      *per = m_accumlated_radio_packet;
+}
+

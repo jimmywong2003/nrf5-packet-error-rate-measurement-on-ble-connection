@@ -28,6 +28,7 @@
   <ProjectSessionItem path="ble_app_image_transfer_c_pca10056_s140;ble_app_image_transfer_c_pca10056_s140;Module"/>
   <ProjectSessionItem path="ble_app_image_transfer_c_pca10056_s140;ble_app_image_transfer_c_pca10056_s140;nRF_BLE"/>
   <ProjectSessionItem path="ble_app_image_transfer_c_pca10056_s140;ble_app_image_transfer_c_pca10056_s140;nRF_Drivers"/>
+  <ProjectSessionItem path="ble_app_image_transfer_c_pca10056_s140;ble_app_image_transfer_c_pca10056_s140;nRF_Libraries"/>
   <ProjectSessionItem path="ble_app_image_transfer_c_pca10056_s140;ble_app_image_transfer_c_pca10056_s140;SDK Modified"/>
  </Project>
  <Register1>
@@ -61,18 +62,22 @@
   <Watches active="0" update="Never"/>
  </Watch4>
  <Files>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="96" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="72" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="29" useTextEdit="1" useBinaryEdit="0" left="0" path="ble_app_image_transfer_c_pca10056_s140.emProject" selected="0" top="18" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="951" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../main.c" selected="1" top="938" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="32" y="12" useTextEdit="1" useBinaryEdit="0" left="0" path="ble_app_image_transfer_c_pca10056_s140.emProject" selected="0" top="3" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_lbs_c/ble_lbs_c.c" selected="0" top="60" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="0" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_nus_c/ble_nus_c.c" selected="0" top="39" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="7646" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="7646" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="40" y="163" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/packet_error_rate.c" selected="0" top="0" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="39" y="12524" useTextEdit="1" useBinaryEdit="0" left="0" path="../config/sdk_config.h" selected="0" top="12517" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="13" y="210" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/packet_error_rate.c" selected="0" top="189" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="42" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/uart/app_uart_fifo.c" selected="0" top="13" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="99" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/util/app_error_weak.c" selected="0" top="86" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="109" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.h" selected="0" top="109" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="263" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.c" selected="0" top="263" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="263" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../sdk_mod/ble_image_transfer_service_c/ble_image_transfer_service_c.c" selected="0" top="329" codecName="Default"/>
   <SessionOpenFile windowGroup="DockEditLeft" x="0" y="57" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/boards/boards.h" selected="0" top="42" codecName="Default"/>
-  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="38" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/packet_error_rate.h" selected="0" top="3" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="56" y="50" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../module/packet_error_rate.h" selected="0" top="15" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="91" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/experimental_section_vars/nrf_section_iter.c" selected="0" top="77" codecName=""/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="987" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/timer/app_timer.c" selected="0" top="973" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="185" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/libraries/log/src/nrf_log_internal.h" selected="0" top="159" codecName="Default"/>
+  <SessionOpenFile windowGroup="DockEditLeft" x="0" y="131" useTextEdit="1" useBinaryEdit="0" left="0" path="../../../../../../components/softdevice/s140/headers/ble_gap.h" selected="0" top="117" codecName="Default"/>
  </Files>
- <ARMCrossStudioWindow activeProject="ble_app_image_transfer_c_pca10056_s140" fileDialogDefaultFilter="" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf52840.s&#xa;C:/Users/Jimmy/Dropbox/Nordic/SDK15.3/modules/nrfx/mdk/arm_startup_nrf52810.s&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf_common.s&#xa;&#xa;C:/Program Files/SEGGER/SEGGER Embedded Studio for ARM 4.10a/source/thumb_crt0.s&#xa;" fileDialogInitialDirectory="C:/Dropbox (Personal)/Nordic/SDK15.3/github/ble_throughput_per/module" debugSearchPath="" autoConnectCapabilities="3711"/>
+ <ARMCrossStudioWindow activeProject="ble_app_image_transfer_c_pca10056_s140" fileDialogDefaultFilter="" autoConnectTarget="J-Link" buildConfiguration="Debug" debugSearchFileMap="C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf52840.s&#xa;C:/Users/Jimmy/Dropbox/Nordic/SDK15.3/modules/nrfx/mdk/arm_startup_nrf52810.s&#xa;C:/Dropbox (Personal)/Nordic/SDK15.3/modules/nrfx/mdk/ses_startup_nrf_common.s&#xa;&#xa;C:/Nordic_Semiconductor_ASA/nRF5_SDK_15.3.0_59ac345/github_example/nrf5-packet-error-rate-measurement-on-ble-connection/ble_app_image_transfer_c/main.c&#xa;C:/Nordic_Semiconductor_ASA/SDK_15.3/github_example/nrf5-packet-error-rate-measurement-on-ble-connection/ble_app_image_transfer_c/main.c&#xa;C:/Program Files/SEGGER/SEGGER Embedded Studio for ARM 4.10a/source/thumb_crt0.s&#xa;" fileDialogInitialDirectory="C:/Nordic_Semiconductor_ASA/SDK_15.3/github_example/nrf5-packet-error-rate-measurement-on-ble-connection/ble_app_image_transfer_c" debugSearchPath="" autoConnectCapabilities="3711"/>
 </session>

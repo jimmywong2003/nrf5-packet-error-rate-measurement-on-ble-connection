@@ -30,6 +30,16 @@ extern "C" {
 #define PPI_CHANNEL_FOR_TX_READY_TIMER_EVT 7  // PPI Channel for connecting the ADDRESS event to GPIOTE_CHANNEL_ADDRESS.
 #define PPI_CHANNEL_FOR_RX_CRCOK_TIMER_EVT 8  // PPI Channel for connecting the CRCERROR event to GPIOTE_CHANNEL_CRCERROR.
 
+
+typedef struct packet_error_s
+{
+        uint32_t radio_packet_success_rate;
+        uint32_t radio_packet_ready;
+        uint32_t radio_packet_crcok;
+} packet_error_t;
+
+
+
 void packet_error_rate_detect_enable(void);
 
 void packet_error_rate_detect_disable(void);
@@ -38,6 +48,7 @@ uint32_t packet_error_rate_timeout_handler(void);
 
 uint32_t get_packet_success_rate(void);
 
+void get_accumlated_packet_success_rate(packet_error_t *per);
 
 #ifdef __cplusplus
 }

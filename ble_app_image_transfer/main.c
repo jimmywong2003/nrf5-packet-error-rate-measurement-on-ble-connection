@@ -108,9 +108,9 @@
 #define RESTART_ADVERTISING_TIMEOUT_MS 2000
 
 #define MIN_CONN_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Minimum acceptable connection interval (0.5 seconds). */
-#define MAX_CONN_INTERVAL MSEC_TO_UNITS(400, UNIT_1_25_MS) /**< Maximum acceptable connection interval (1 second). */
+#define MAX_CONN_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Maximum acceptable connection interval (1 second). */
 #define SLAVE_LATENCY 0                                    /**< Slave latency. */
-#define CONN_SUP_TIMEOUT MSEC_TO_UNITS(6000, UNIT_10_MS)   /**< Connection supervisory time-out (4 seconds). */
+#define CONN_SUP_TIMEOUT MSEC_TO_UNITS(10000, UNIT_10_MS)   /**< Connection supervisory time-out (4 seconds). */
 
 #define FIRST_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(5000) /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (15 seconds). */
 #define NEXT_CONN_PARAMS_UPDATE_DELAY APP_TIMER_TICKS(20000) /**< Time between each call to sd_ble_gap_conn_param_update after the first call (5 seconds). */
@@ -178,7 +178,8 @@ static uint32_t frameCount = 0;
 static uint32_t frameCount_previous = 0;
 static uint32_t img_data_length = BLE_ITS_MAX_DATA_LEN;
 
-#define TEST_FIRMWARE_SIZE (4 * 1024 * 1024)
+#define TEST_FIRMWARE_SIZE (1024 * 1024)
+//#define TEST_FIRMWARE_SIZE (100 * 1024)
 
 static uint32_t start_time = 0;
 static uint32_t finish_time = 0;
@@ -187,7 +188,11 @@ static uint32_t data_send = 0;
 //static bool test_flag = false;
 static bool start_thoughput_test = false;
 
+#define DEBUG_GPIO_SEND_COUNT 
+
+#ifdef DEBUG_GPIO_SEND_COUNT
 #define GPIO_SEND_COUNT_PIN 31
+#endif 
 
 /**@brief Struct that contains pointers to the encoded advertising data. */
 static ble_gap_adv_data_t m_adv_data =
@@ -216,7 +221,9 @@ static void test_thoughput(void)
                 {
                         img_data_length = 0;
                         frameCount++;
+#ifdef DEBUG_GPIO_SEND_COUNT
                         nrf_gpio_pin_toggle(GPIO_SEND_COUNT_PIN);
+#endif
                         data_send += m_ble_its_max_data_len;
                 }
                 m_buffer_transfer_index++;
@@ -228,9 +235,12 @@ static void test_thoughput(void)
                         start_thoughput_test = false;
                         //NRF_LOG_INFO("Total time = %d.", (finish_time - start_time)/32768);
 
-                        uint32_t time_ms = (finish_time - start_time) * 1000 / 32768;
+                        NRF_LOG_INFO("Time of finish transfer = %d", finish_time);
+                        double time_ms_float = (finish_time - start_time) / 32.768;
+                        uint32_t time_ms = (uint32_t) time_ms_float;
                         uint32_t bit_count = (data_send * 8);
                         float throughput_kbps = ((bit_count / (time_ms / 1000.f)) / 1000.f);
+
 
                         NRF_LOG_INFO("Done.");
                         NRF_LOG_INFO("=============================");
@@ -376,11 +386,26 @@ static void nus_data_handler(ble_nus_evt_t *p_evt)
         {
                 uint32_t err_code;
 
-                uint16_t packet_error_rate = p_evt->params.rx_data.p_data[0];
-                NRF_LOG_DEBUG("Packet error Rate = %d %%", packet_error_rate);
+//                if (p_evt->params.rx_data.length == )
 
-                //m_application_state.rssi[p_ble_evt->evt.gap_evt.conn_handle] = p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
-                m_application_state.per = packet_error_rate;
+                if (p_evt->params.rx_data.p_data[0] == '#')
+                {
+                        static uint8_t string_per[BLE_NUS_MAX_DATA_LEN];
+                        memcpy(string_per, p_evt->params.rx_data.p_data, p_evt->params.rx_data.length);
+                        NRF_LOG_INFO("=============================");
+                        NRF_LOG_INFO("Accumulated Packet Error Rate Result");
+                        NRF_LOG_INFO("%s", string_per);
+                        NRF_LOG_INFO("=============================");
+                }
+                else
+                {
+                        uint16_t packet_error_rate = p_evt->params.rx_data.p_data[0];
+                        NRF_LOG_INFO("Length = %d, PER = %d %%", p_evt->params.rx_data.length, packet_error_rate);
+                        //m_application_state.rssi[p_ble_evt->evt.gap_evt.conn_handle] = p_ble_evt->evt.gap_evt.params.rssi_changed.rssi;
+                        m_application_state.per = packet_error_rate;
+                }
+
+
 
                 for (uint32_t i = 0; i < p_evt->params.rx_data.length; i++)
                 {
@@ -550,6 +575,7 @@ static void led_write_handler(uint16_t conn_handle, ble_lbs_t *p_lbs, uint8_t le
                         start_time = app_timer_cnt_get();
                         finish_time = 0;
                         data_send = 0;
+                        NRF_LOG_INFO("Time of starting transfer = %d", start_time);
                         test_thoughput();
                         if (m_connection_one_sec_timer_is_running == false)
                         {
@@ -824,6 +850,7 @@ static void ble_evt_handler(ble_evt_t const *p_ble_evt, void *p_context)
                 APP_ERROR_CHECK(err_code);
                 err_code = app_button_enable();
                 APP_ERROR_CHECK(err_code);
+                NRF_LOG_INFO("Actual connection parameter %d", p_ble_evt->evt.gap_evt.params.connected.conn_params.max_conn_interval);
 
                 tx_power_set();
 
@@ -1072,8 +1099,17 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
         case LEDBUTTON_BUTTON:
                 if (button_action == APP_BUTTON_PUSH)
                 {
+                        uint16_t length = 5;
+                        uint8_t data_array[20];
+                        sprintf(data_array,"start");
+                        err_code = ble_nus_data_send(&m_nus, data_array, &length, m_conn_handle);
+                        if ((err_code != NRF_ERROR_INVALID_STATE) &&
+                            (err_code != NRF_ERROR_RESOURCES) &&
+                            (err_code != NRF_ERROR_NOT_FOUND))
+                        {
+                                APP_ERROR_CHECK(err_code);
+                        }
                 }
-
                 break;
 
         default:
@@ -1167,9 +1203,10 @@ int main(void)
         err_code = app_button_enable();
         APP_ERROR_CHECK(err_code);
 
+#ifdef DEBUG_GPIO_SEND_COUNT
         nrf_gpio_cfg_output(GPIO_SEND_COUNT_PIN);
         nrf_gpio_pin_clear(GPIO_SEND_COUNT_PIN);
-
+#endif 
         // Enter main loop.
         for (;;)
         {

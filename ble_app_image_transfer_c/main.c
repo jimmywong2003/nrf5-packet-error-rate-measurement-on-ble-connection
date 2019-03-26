@@ -135,12 +135,30 @@ static bool m_packet_error_rate_timer_is_running = false;
 static void polling_packet_error_timer_handler(void *p_context);
 
 #define TEST_FIRMWARE_SIZE (1024 * 1024)    // Throughput test on the packet size
+//#define TEST_FIRMWARE_SIZE (100 * 1024)    // Throughput test on the packet size
 
 static uint32_t receive_byte = 0;
 static uint32_t previous_receive_byte = 0;
 static packet_error_t m_packet_error_result;
 
 static char const m_target_periph_name[] = "Peripheral_PER"; /**< Name of the device we try to connect to. This name is searched in the scan report data*/
+
+
+static void test_send_data_start(void)
+{
+        ret_code_t err_code;
+        receive_byte = 0;
+        previous_receive_byte = 0;
+
+        packet_error_rate_reset_counter();
+        if (m_packet_error_rate_timer_is_running == false)
+        {
+                err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
+                APP_ERROR_CHECK(err_code);
+                m_packet_error_rate_timer_is_running = true;
+        }
+
+}
 
 /*******************************************************
       Channel Survey testing
@@ -195,7 +213,22 @@ static void ble_nus_chars_received_uart_print(uint8_t *p_data, uint16_t data_len
         ret_code_t ret_val;
 
         NRF_LOG_DEBUG("Receiving data.");
-        NRF_LOG_HEXDUMP_DEBUG(p_data, data_len);
+        NRF_LOG_HEXDUMP_INFO(p_data, data_len);
+
+        if (strncmp("start", p_data, data_len) == 0)
+        {
+            NRF_LOG_INFO("Receive the start command");
+                            // Prss the LED button to trigger the throughput test start
+            ret_val = ble_lbs_led_status_send(&m_ble_lbs_c, 1);
+            if (ret_val != NRF_SUCCESS &&
+                ret_val != BLE_ERROR_INVALID_CONN_HANDLE &&
+                ret_val != NRF_ERROR_INVALID_STATE)
+            {
+                    APP_ERROR_CHECK(ret_val);
+            }
+            test_send_data_start();
+        }
+        NRF_LOG_INFO("uart_print %s, %d", p_data, data_len);
 
         for (uint32_t i = 0; i < data_len; i++)
         {
@@ -654,7 +687,7 @@ static void ble_stack_init(void)
         APP_ERROR_CHECK(err_code);
 
         // Set the Power mode to Low power mode
-        err_code = sd_power_mode_set(NRF_POWER_MODE_LOWPWR);
+        err_code = sd_power_mode_set(NRF_POWER_MODE_CONSTLAT);//(NRF_POWER_MODE_LOWPWR);
         APP_ERROR_CHECK(err_code);
 
         // Enaable the DCDC Power Mode
@@ -664,6 +697,9 @@ static void ble_stack_init(void)
         // Register a handler for BLE events.
         NRF_SDH_BLE_OBSERVER(m_ble_observer, APP_BLE_OBSERVER_PRIO, ble_evt_handler, NULL);
 }
+
+
+
 
 /**@brief Function for handling events from the button handler module.
  *
@@ -691,17 +727,7 @@ static void button_event_handler(uint8_t pin_no, uint8_t button_action)
 
                         if (button_action == APP_BUTTON_PUSH)
                         {
-                                receive_byte = 0;
-                                previous_receive_byte = 0;
-
-                                packet_error_rate_reset_counter();
-                                if (m_packet_error_rate_timer_is_running != false)
-                                {
-                                        err_code = app_timer_start(m_packet_error_rate_update_timer_id, PACKET_ERROR_UPDATE_TIMER_INTERVAL, NULL);
-                                        APP_ERROR_CHECK(err_code);
-                                        m_packet_error_rate_timer_is_running = true;
-                                }
-
+                                test_send_data_start();
                         }
                 }
                 break;
@@ -871,6 +897,20 @@ static void polling_packet_error_timer_handler(void *p_context)
                         APP_ERROR_CHECK(ret_val);
                         m_packet_error_rate_timer_is_running = false;
                 }
+
+                //Send the summary of PER to peripheral role
+                {
+                        static uint8_t string_per[BLE_NUS_MAX_DATA_LEN];
+                        sprintf(string_per, "#Sent %08d: CRCOK %08d", m_packet_error_result.radio_packet_ready, m_packet_error_result.radio_packet_crcok);
+                        NRF_LOG_INFO("string_per %s", string_per);
+                        //ret_code_t ret_val = ble_nus_c_string_send(&m_ble_nus_c, data_array, strlen(data_array));
+                        ret_val = ble_nus_c_string_send(&m_ble_nus_c, string_per, strlen(string_per));
+                        if ((ret_val != NRF_ERROR_INVALID_STATE) && (ret_val != NRF_ERROR_RESOURCES))
+                        {
+                                APP_ERROR_CHECK(ret_val);
+                        }
+                }
+
         }
         previous_receive_byte = receive_byte;
 }

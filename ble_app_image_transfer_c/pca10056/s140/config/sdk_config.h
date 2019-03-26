@@ -158,7 +158,7 @@
 
 // <o> NRF_BLE_SCAN_MIN_CONNECTION_INTERVAL - Determines minimum connection interval in milliseconds.
 #ifndef NRF_BLE_SCAN_MIN_CONNECTION_INTERVAL
-#define NRF_BLE_SCAN_MIN_CONNECTION_INTERVAL 7.5
+#define NRF_BLE_SCAN_MIN_CONNECTION_INTERVAL 50
 #endif
 
 // <o> NRF_BLE_SCAN_MAX_CONNECTION_INTERVAL - Determines maximum connection interval in milliseconds.
@@ -173,7 +173,7 @@
 
 // <o> NRF_BLE_SCAN_SUPERVISION_TIMEOUT - Determines the supervision time-out in units of 10 millisecond.
 #ifndef NRF_BLE_SCAN_SUPERVISION_TIMEOUT
-#define NRF_BLE_SCAN_SUPERVISION_TIMEOUT 4000
+#define NRF_BLE_SCAN_SUPERVISION_TIMEOUT 6000
 #endif
 
 // <o> NRF_BLE_SCAN_SCAN_PHY  - PHY to scan on.

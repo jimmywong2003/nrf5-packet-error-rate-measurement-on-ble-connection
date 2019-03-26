@@ -248,7 +248,7 @@ static void test_thoughput(void)
                         NRF_LOG_INFO("Throughput: " NRF_LOG_FLOAT_MARKER " Kbps.",
                                      NRF_LOG_FLOAT(throughput_kbps));
                         NRF_LOG_INFO("=============================");
-                        NRF_LOG_INFO("Sent %u bytes of ATT payload.", data_send);
+                        NRF_LOG_INFO("Sent %u KBytes of ATT payload.", data_send/1024);
                         NRF_LOG_INFO("Retrieving amount of bytes received from peer...");
 
                         if (m_connection_one_sec_timer_is_running)
